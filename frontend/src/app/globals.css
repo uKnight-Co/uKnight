@@ -121,7 +121,36 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* 3D Phone glare sweep */
+@keyframes glare-sweep {
+  0% {
+    transform: translateX(-100%) rotate(15deg);
+  }
+
+  100% {
+    transform: translateX(200%) rotate(15deg);
+  }
+}
+
+.phone-glare::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.04) 40%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.04) 60%,
+      transparent 100%);
+  animation: glare-sweep 8s ease-in-out infinite;
+  pointer-events: none;
 }
