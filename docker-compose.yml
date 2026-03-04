@@ -1,6 +1,8 @@
 services:
   backend:
     build: ./backend/server
+    env_file:
+      - ./backend/server/.env
     ports:
       - "8080:8080"
     networks:
