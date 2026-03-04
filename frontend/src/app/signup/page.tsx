@@ -19,7 +19,24 @@ export default function SignupPage() {
     const handleGoogleSignup = async () => {
         try {
             const provider = new GoogleAuthProvider()
-            await signInWithPopup(auth, provider)
+            const result = await signInWithPopup(auth, provider)
+            const user = result.user
+
+             // Call backend to create/get user
+             await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/users/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    email: user.email,
+                    displayName: user.displayName,
+                    profilePicture: user.photoURL,
+                    verified: user.email?.endsWith('.edu') || false
+                }),
+            })
+
             router.push("/lobby")
         } catch (err: any) {
             setError("Failed to sign up with Google.")
@@ -35,7 +52,24 @@ export default function SignupPage() {
             // For prototype, we allow regular emails but warn.
         }
         try {
-            await createUserWithEmailAndPassword(auth, email, password)
+            const result = await createUserWithEmailAndPassword(auth, email, password)
+            const user = result.user
+
+             // Call backend to create/get user
+             await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/users/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    email: user.email,
+                    displayName: user.displayName || email.split('@')[0], // Fallback
+                    profilePicture: user.photoURL,
+                    verified: user.email?.endsWith('.edu') || false
+                }),
+            })
+
             router.push("/lobby")
         } catch (err: any) {
             setError(err.message)

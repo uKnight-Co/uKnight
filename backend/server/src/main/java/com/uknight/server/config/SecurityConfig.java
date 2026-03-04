@@ -23,6 +23,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults()) // 1. Enable CORS in Security
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/ws/**").permitAll() // Allow WebSocket handshake
+                        .requestMatchers("/api/users/**").permitAll() // Allow user API
                         .anyRequest().authenticated());
 
         return http.build();

@@ -391,6 +391,8 @@ export default function LobbyPage() {
 
         if (!chatInput.trim() || !currentPeerId || !stompClient.current?.connected) return;
 
+        // Chat spam protection removed per user request - allow unlimited messaging
+
         const message = chatInput.trim();
 
         // Handle slash commands
