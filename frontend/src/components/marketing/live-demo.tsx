@@ -8,11 +8,10 @@ import { Mic, Video, PhoneOff } from "lucide-react"
 
 export function LiveDemo() {
     const [step, setStep] = useState(0)
-    
-    // Initialize with the first message to avoid synchronous setState in useEffect
+
     const [messages, setMessages] = useState<
-        { id: number; sender: "You" | "Stranger"; text: string }[]
-    >([{ id: 0, sender: "Stranger", text: "Hey! Biology major here from UCLA. You?" }])
+        { id: string; sender: "You" | "Stranger"; text: string }[]
+    >([])
 
     const conversation = React.useMemo(() => [
         { sender: "Stranger", text: "Hey! Biology major here from UCLA. You?" },
@@ -21,28 +20,31 @@ export function LiveDemo() {
         { sender: "You", text: "Haha small world. Want to sync up?" },
     ] as const, [])
 
+    // Interval to advance conversation steps
     useEffect(() => {
         const interval = setInterval(() => {
-            setStep((prev) => {
-                const nextStep = (prev + 1) % (conversation.length + 4)
-                
-                // Add message if we are in the conversation steps
-                if (nextStep > 0 && nextStep <= conversation.length) {
-                    setMessages((prevMsgs) => [
-                        ...prevMsgs, 
-                        { ...conversation[nextStep - 1], id: Date.now() }
-                    ])
-                } else if (nextStep === 0) {
-                    // Reset on cycle loop
-                    setMessages([{ id: Date.now(), sender: "Stranger", text: "Hey! Biology major here from UCLA. You?" }])
-                }
-                
-                return nextStep
-            })
+            setStep((prev) => (prev + 1) % (conversation.length + 4))
         }, 1500)
-
         return () => clearInterval(interval)
-    }, [conversation])
+    }, [conversation.length])
+
+    // Handle message additions based on current step
+    useEffect(() => {
+        if (step === 0) {
+            // Reset to first message at start of cycle
+            setMessages([{ id: "initial", ...conversation[0] }])
+        } else if (step > 1 && step <= conversation.length) {
+            // Add subsequent messages (skipping step 1 to prevent duplicating first message)
+            const nextMsg = conversation[step - 1]
+            setMessages((prevMsgs) => {
+                // Guard against duplicate additions in StrictMode
+                if (prevMsgs.some(m => m.text === nextMsg.text && m.sender === nextMsg.sender)) {
+                    return prevMsgs
+                }
+                return [...prevMsgs, { ...nextMsg, id: crypto.randomUUID() }]
+            })
+        }
+    }, [step, conversation])
 
 
     return (
