@@ -9,6 +9,7 @@ import { LiveDemo } from "@/components/marketing/live-demo"
 
 import { Manifesto } from "@/components/marketing/manifesto"
 import { FeatureScroll } from "@/components/marketing/feature-scroll"
+import { UKnightPlus } from "@/components/marketing/uknight-plus"
 
 export default function Home() {
   return (
@@ -88,6 +89,9 @@ export default function Home() {
 
         {/* Feature Scroll Section */}
         <FeatureScroll />
+
+        {/* uKnight+ Premium Section */}
+        <UKnightPlus />
 
 
       </main>
