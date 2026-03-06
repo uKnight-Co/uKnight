@@ -72,11 +72,23 @@ export default function Home() {
           <div className="container px-4 text-center md:px-8">
             <p className="mb-6 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Trusted by students at</p>
             <div className="overflow-hidden">
-              <div className="flex animate-marquee gap-16 whitespace-nowrap opacity-50 grayscale transition-all hover:grayscale-0">
+              <div className="flex w-full justify-center animate-marquee gap-16 whitespace-nowrap opacity-50 grayscale transition-all hover:grayscale-0">
                 {["UCF"].map((uni) => (
                   <span key={uni} className="text-xl font-bold">{uni}</span>
                 ))}
                 {["UF"].map((uni) => (
+                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
+                ))}
+                {["FSU"].map((uni) => (
+                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
+                ))}
+                {["FAU"].map((uni) => (
+                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
+                ))}
+                {["FGCU"].map((uni) => (
+                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
+                ))}
+                {["FIU"].map((uni) => (
                   <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
                 ))}
                 {["USF"].map((uni) => (
