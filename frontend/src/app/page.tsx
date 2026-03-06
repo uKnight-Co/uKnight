@@ -76,7 +76,16 @@ export default function Home() {
                 {["UCF"].map((uni) => (
                   <span key={uni} className="text-xl font-bold">{uni}</span>
                 ))}
-                {["UCF"].map((uni) => (
+                {["UF"].map((uni) => (
+                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
+                ))}
+                {["USF"].map((uni) => (
+                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
+                ))}
+                {["UNF"].map((uni) => (
+                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
+                ))}
+                {["UM"].map((uni) => (
                   <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
                 ))}
               </div>
