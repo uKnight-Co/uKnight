@@ -2,6 +2,8 @@ package com.uknight.server.controller;
 
 import com.uknight.server.service.GameService;
 import com.uknight.server.service.MatchmakingService;
+import com.uknight.server.service.SessionTrackingService;
+import com.uknight.server.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -22,33 +24,69 @@ public class LobbyController {
     private final MatchmakingService matchmakingService;
     private final GameService gameService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SessionTrackingService sessionTrackingService;
+    private final UserService userService;
 
-    // Frontend sends to: /app/join
     @MessageMapping("/join")
-    public void joinLobby(@Payload String university, SimpMessageHeaderAccessor headerAccessor) {
-        // We use the UUID sent by the client for topics, as it's easier to synchronize
+    public void joinLobby(@Payload Map<String, String> payload, SimpMessageHeaderAccessor headerAccessor) {
         String sessionId = headerAccessor.getFirstNativeHeader("uuid");
         if (sessionId == null) {
-            sessionId = headerAccessor.getSessionId(); // Fallback
+            sessionId = headerAccessor.getSessionId();
         }
-        
-        log.info("Student joined the lobby from: {} (UUID: {})", university, sessionId);
-        
+
+        String university = payload.getOrDefault("university", "Unknown");
+        String firebaseUid = payload.get("userId");
+
+        log.info("Student joined the lobby from: {} (UUID: {}, userId: {})", university, sessionId, firebaseUid);
+
+        if (firebaseUid != null && !firebaseUid.isBlank()) {
+            sessionTrackingService.registerSession(sessionId, firebaseUid);
+        }
+
         matchmakingService.addUser(sessionId);
 
         String partnerSessionId = matchmakingService.findMatch(sessionId);
-        
+
         if (partnerSessionId != null) {
-            // Notify both users that a match is found
             log.info("Match created: {} and {}", sessionId, partnerSessionId);
-            
-            // Notify current user (initiator of the match)
+
+            sessionTrackingService.recordMatch(sessionId, partnerSessionId);
+
+            String userId1 = sessionTrackingService.getUserId(sessionId);
+            String userId2 = sessionTrackingService.getUserId(partnerSessionId);
+            if (userId1 != null) userService.incrementPeopleMet(userId1);
+            if (userId2 != null) userService.incrementPeopleMet(userId2);
+
             Object payload1 = Map.of("peerId", partnerSessionId, "initiator", true);
             messagingTemplate.convertAndSend("/topic/match/" + sessionId, payload1);
-                
-            // Notify partner
+
             Object payload2 = Map.of("peerId", sessionId, "initiator", false);
             messagingTemplate.convertAndSend("/topic/match/" + partnerSessionId, payload2);
+        }
+    }
+
+    @MessageMapping("/end-session")
+    public void endSession(SimpMessageHeaderAccessor headerAccessor) {
+        String sessionId = headerAccessor.getFirstNativeHeader("uuid");
+        if (sessionId == null) {
+            sessionId = headerAccessor.getSessionId();
+        }
+
+        log.info("Session ended for UUID: {}", sessionId);
+
+        String partnerUuid = sessionTrackingService.getPartnerUuid(sessionId);
+        long minutes = sessionTrackingService.endSession(sessionId);
+
+        String userId = sessionTrackingService.getUserId(sessionId);
+        if (userId != null && minutes > 0) {
+            userService.addTimeSpent(userId, minutes);
+        }
+
+        if (partnerUuid != null) {
+            String partnerUserId = sessionTrackingService.getUserId(partnerUuid);
+            if (partnerUserId != null && minutes > 0) {
+                userService.addTimeSpent(partnerUserId, minutes);
+            }
         }
     }
 
