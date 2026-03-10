@@ -59,4 +59,21 @@ public class UserService {
     public User updateUser(User user) {
         return userRepository.save(user);
     }
+
+    public void incrementPeopleMet(String userId) {
+        userRepository.findById(userId).ifPresent(user -> {
+            user.setNumPeopleMet((user.getNumPeopleMet() == null ? 0 : user.getNumPeopleMet()) + 1);
+            userRepository.save(user);
+            log.info("Incremented peopleMet for user {}: now {}", userId, user.getNumPeopleMet());
+        });
+    }
+
+    public void addTimeSpent(String userId, long minutes) {
+        if (minutes <= 0) return;
+        userRepository.findById(userId).ifPresent(user -> {
+            user.setTimeSpentMinutes((user.getTimeSpentMinutes() == null ? 0 : user.getTimeSpentMinutes()) + (int) minutes);
+            userRepository.save(user);
+            log.info("Added {}m to user {}: now {}m", minutes, userId, user.getTimeSpentMinutes());
+        });
+    }
 }

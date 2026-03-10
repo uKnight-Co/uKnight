@@ -6,6 +6,7 @@ import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MediaDeviceSelector } from "@/components/media-device-selector"
 import { useMediaStore } from "@/store/media-store"
+import { useAuth } from "@/context/auth-context"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Client, IMessage, StompSubscription } from "@stomp/stompjs"
@@ -63,6 +64,7 @@ export default function LobbyPage() {
     const [remoteMicOn, setRemoteMicOn] = useState(true)
     const [remoteVideoOn, setRemoteVideoOn] = useState(true)
     const { videoDeviceId, audioDeviceId } = useMediaStore()
+    const { user: firebaseUser } = useAuth()
 
     // Game state
     const [isGameActive, setIsGameActive] = useState(false)
@@ -112,6 +114,16 @@ export default function LobbyPage() {
         }
     }
 
+    const sendEndSession = () => {
+        if (stompClient.current?.connected) {
+            stompClient.current.publish({
+                destination: '/app/end-session',
+                headers: { 'uuid': myUuid.current },
+                body: ''
+            });
+        }
+    }
+
     const cleanupAndRejoin = () => {
         setStatus("Searching for verified students...");
         setCurrentPeerId(null);
@@ -119,7 +131,7 @@ export default function LobbyPage() {
         setIsChatOpen(false);
         if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = null;
-            remoteVideoRef.current.load(); // Force reload to clear frame
+            remoteVideoRef.current.load();
         }
 
         if (peerConnection.current) {
@@ -127,17 +139,17 @@ export default function LobbyPage() {
             peerConnection.current = null;
         }
 
-        // Re-join lobby
         if (stompClient.current && stompClient.current.connected) {
             stompClient.current.publish({
                 destination: '/app/join',
                 headers: { 'uuid': myUuid.current },
-                body: "University of Central Florida"
+                body: JSON.stringify({ university: "University of Central Florida", userId: firebaseUser?.uid || "" })
             });
         }
     }
 
     const handlePartnerDisconnect = () => {
+        sendEndSession();
         cleanupAndRejoin();
     }
 
@@ -454,10 +466,11 @@ export default function LobbyPage() {
 
     const handleNext = () => {
         const now = Date.now();
-        if (now - lastNextTime.current < 2000) return; // 2 second cooldown
+        if (now - lastNextTime.current < 2000) return;
         lastNextTime.current = now;
 
         if (currentPeerId) {
+            sendEndSession();
             sendSignal({ type: 'BYE', targetPeerId: currentPeerId });
         }
         cleanupAndRejoin();
@@ -551,7 +564,7 @@ export default function LobbyPage() {
                 client.publish({
                     destination: '/app/join',
                     headers: { 'uuid': uuid },
-                    body: "University of Central Florida"
+                    body: JSON.stringify({ university: "University of Central Florida", userId: firebaseUser?.uid || "" })
                 })
             },
             onStompError: (frame) => {
@@ -567,6 +580,13 @@ export default function LobbyPage() {
 
         return () => {
             if (peerConnection.current) peerConnection.current.close();
+            if (client.connected) {
+                client.publish({
+                    destination: '/app/end-session',
+                    headers: { 'uuid': uuid },
+                    body: ''
+                });
+            }
             client.deactivate();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -6,17 +6,55 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { motion } from "framer-motion"
 import { GraduationCap, Clock, User as UserIcon, Calendar } from "lucide-react"
+import { useEffect, useState } from "react"
+
+interface UserStats {
+    numPeopleMet: number
+    timeSpentMinutes: number
+    createdAt: string | null
+}
+
+function formatTimeSpent(minutes: number): string {
+    if (minutes < 60) return `${minutes}m`
+    const hours = Math.floor(minutes / 60)
+    const remaining = minutes % 60
+    return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`
+}
+
+function formatJoinDate(isoDate: string | null): string {
+    if (!isoDate) return "Unknown"
+    const date = new Date(isoDate)
+    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" })
+}
 
 export default function ProfilePage() {
     const { user } = useAuth()
+    const [userStats, setUserStats] = useState<UserStats | null>(null)
+
+    useEffect(() => {
+        if (!user?.uid) return
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+        fetch(`${apiUrl}/api/users/${user.uid}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+                if (data) {
+                    setUserStats({
+                        numPeopleMet: data.numPeopleMet ?? 0,
+                        timeSpentMinutes: data.timeSpentMinutes ?? 0,
+                        createdAt: data.createdAt ?? null,
+                    })
+                }
+            })
+            .catch(err => console.error("Failed to fetch user stats:", err))
+    }, [user?.uid])
 
     if (!user) return null
 
-    // Mock stats for prototype
     const stats = [
-        { label: "People Met", value: "12", icon: UserIcon },
-        { label: "Time Chatted", value: "45m", icon: Clock },
-        { label: "Joined", value: "Feb 2026", icon: Calendar },
+        { label: "People Met", value: userStats ? String(userStats.numPeopleMet) : "—", icon: UserIcon },
+        { label: "Time Chatted", value: userStats ? formatTimeSpent(userStats.timeSpentMinutes) : "—", icon: Clock },
+        { label: "Joined", value: userStats ? formatJoinDate(userStats.createdAt) : "—", icon: Calendar },
     ]
 
     return (
