@@ -18,7 +18,7 @@ export default function TermsPage() {
                     <p>You agree to treat all users with respect. Harassment, hate speech, nudity, and illegal activities are strictly prohibited and will result in an immediate ban.</p>
 
                     <h2>4. Disclaimer</h2>
-                    <p>uKnight is provided "as is" without warranties of any kind. We are not responsible for the actions of users on the platform.</p>
+                    <p>uKnight is provided &quot;as is&quot; without warranties of any kind. We are not responsible for the actions of users on the platform.</p>
                 </article>
             </main>
         </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
+import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, User } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,7 +16,7 @@ export default function SignupPage() {
     const [error, setError] = useState("")
     const router = useRouter()
 
-    const syncUserWithBackend = async (user: any) => {
+    const syncUserWithBackend = async (user: User) => {
         try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
             const res = await fetch(`${apiUrl}/api/users/login`, {
@@ -42,7 +42,7 @@ export default function SignupPage() {
             const result = await signInWithPopup(auth, provider)
             await syncUserWithBackend(result.user)
             router.push("/lobby")
-        } catch (err: any) {
+        } catch (err) {
             setError("Failed to sign up with Google.")
             console.error(err)
         }
@@ -54,8 +54,8 @@ export default function SignupPage() {
             const result = await createUserWithEmailAndPassword(auth, email, password)
             await syncUserWithBackend(result.user)
             router.push("/lobby")
-        } catch (err: any) {
-            setError(err.message)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to create account.")
         }
     }
 

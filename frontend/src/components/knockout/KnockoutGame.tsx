@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trophy, RefreshCw, Gamepad2, Target } from "lucide-react";
+import { X, Trophy, RefreshCw, Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Puck = {
@@ -24,13 +24,64 @@ type GameState = {
     winner: string | null;
 };
 
+interface StompClient {
+    connected: boolean;
+    subscribe: (dest: string, cb: (msg: { body: string }) => void) => { unsubscribe: () => void };
+    publish: (params: { destination: string; headers: Record<string, string>; body: string }) => void;
+}
+
 type KnockoutProps = {
     matchId: string | null;
     myId: string;
     opponentId: string;
-    stompClient: any;
+    stompClient: StompClient | null;
     onClose: () => void;
 };
+
+const CANVAS_SIZE = 400;
+const PLATFORM_RADIUS = 0.45;
+const VISUAL_PLATFORM_RADIUS = 180;
+
+function shadeColor(col: string, amt: number) {
+    const usePound = col[0] === "#";
+    const num = parseInt(col.slice(1), 16);
+    let r = (num >> 16) + amt;
+    let g = (num >> 8 & 0x00FF) + amt;
+    let b = (num & 0x0000FF) + amt;
+    r = Math.min(255, Math.max(0, r));
+    g = Math.min(255, Math.max(0, g));
+    b = Math.min(255, Math.max(0, b));
+    return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, "0");
+}
+
+function drawPuck(ctx: CanvasRenderingContext2D, puck: Puck, color: string) {
+    const x = CANVAS_SIZE / 2 + puck.x * (CANVAS_SIZE / 2);
+    const y = CANVAS_SIZE / 2 + puck.y * (CANVAS_SIZE / 2);
+    const radius = puck.radius * (CANVAS_SIZE / 2);
+
+    const dist = Math.sqrt(puck.x * puck.x + puck.y * puck.y);
+    const opacity = dist > PLATFORM_RADIUS ? 0.3 : 1;
+
+    ctx.globalAlpha = opacity;
+
+    ctx.beginPath();
+    ctx.arc(x + 2, y + 2, radius, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(x - radius / 3, y - radius / 3, 0, x, y, radius);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, shadeColor(color, -20));
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+}
 
 export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }: KnockoutProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -45,10 +96,6 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
     const [dragEnd, setDragEnd] = useState({ x: 0, y: 0 });
     const [isMyTurn, setIsMyTurn] = useState(false);
     const [renderTrigger, setRenderTrigger] = useState(0);
-
-    const CANVAS_SIZE = 400;
-    const PLATFORM_RADIUS = 0.45; // Normalized
-    const VISUAL_PLATFORM_RADIUS = 180; // Pixels
 
     // --- Physics Helpers (Mirrored from Backend) ---
 
@@ -129,38 +176,32 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
         const centerX = CANVAS_SIZE / 2;
         const centerY = CANVAS_SIZE / 2;
 
-        // Platform
         ctx.beginPath();
         ctx.arc(centerX, centerY, VISUAL_PLATFORM_RADIUS, 0, Math.PI * 2);
-        const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, VISUAL_PLATFORM_RADIUS);
-        grad.addColorStop(0, "#1e293b");
-        grad.addColorStop(1, "#0f172a");
-        ctx.fillStyle = grad;
+        const platformGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, VISUAL_PLATFORM_RADIUS);
+        platformGrad.addColorStop(0, "#1e293b");
+        platformGrad.addColorStop(1, "#0f172a");
+        ctx.fillStyle = platformGrad;
         ctx.fill();
         ctx.strokeStyle = "#334155";
         ctx.lineWidth = 4;
         ctx.stroke();
 
-        // Grid lines
         ctx.beginPath();
         ctx.arc(centerX, centerY, VISUAL_PLATFORM_RADIUS * 0.6, 0, Math.PI * 2);
         ctx.strokeStyle = "#1e293b";
         ctx.stroke();
 
-        // Draw Pucks
         const p = pucksRef.current;
-        drawPuck(ctx, p[0], "#ef4444"); // Red (Player 1)
-        drawPuck(ctx, p[1], "#3b82f6"); // Blue (Player 2)
+        drawPuck(ctx, p[0], "#ef4444");
+        drawPuck(ctx, p[1], "#3b82f6");
 
-        // Drag Indicator
         if (isDragging && isMyTurn) {
             const dx = dragEnd.x - dragStart.x;
             const dy = dragEnd.y - dragStart.y;
             const magnitude = Math.sqrt(dx * dx + dy * dy);
 
             if (magnitude > 10) {
-                const angle = Math.atan2(dy, dx);
-                // Shot line
                 ctx.beginPath();
                 ctx.moveTo(dragStart.x, dragStart.y);
                 ctx.lineTo(dragStart.x - dx * 0.8, dragStart.y - dy * 0.8);
@@ -170,7 +211,6 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                // Aim circle
                 ctx.beginPath();
                 ctx.arc(dragStart.x, dragStart.y, Math.min(magnitude / 2, 60), 0, Math.PI * 2);
                 ctx.fillStyle = "#10b98120";
@@ -179,51 +219,7 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
                 ctx.stroke();
             }
         }
-    }, [renderTrigger, isDragging, dragStart, dragEnd]);
-
-    const drawPuck = (ctx: CanvasRenderingContext2D, puck: Puck, color: string) => {
-        const x = CANVAS_SIZE / 2 + puck.x * (CANVAS_SIZE / 2);
-        const y = CANVAS_SIZE / 2 + puck.y * (CANVAS_SIZE / 2);
-        const radius = puck.radius * (CANVAS_SIZE / 2);
-
-        // Simple check for out of bounds circle
-        const dist = Math.sqrt(puck.x * puck.x + puck.y * puck.y);
-        const opacity = dist > PLATFORM_RADIUS ? 0.3 : 1;
-
-        ctx.globalAlpha = opacity;
-
-        // Shadow
-        ctx.beginPath();
-        ctx.arc(x + 2, y + 2, radius, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(0,0,0,0.4)";
-        ctx.fill();
-
-        // Body
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        const grad = ctx.createRadialGradient(x - radius / 3, y - radius / 3, 0, x, y, radius);
-        grad.addColorStop(0, color);
-        grad.addColorStop(1, shadeColor(color, -20));
-        ctx.fillStyle = grad;
-        ctx.fill();
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.globalAlpha = 1;
-    };
-
-    const shadeColor = (col: string, amt: number) => {
-        const usePound = col[0] === "#";
-        const num = parseInt(col.slice(1), 16);
-        let r = (num >> 16) + amt;
-        let g = (num >> 8 & 0x00FF) + amt;
-        let b = (num & 0x0000FF) + amt;
-        r = Math.min(255, Math.max(0, r));
-        g = Math.min(255, Math.max(0, g));
-        b = Math.min(255, Math.max(0, b));
-        return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, "0");
-    };
+    }, [renderTrigger, isDragging, isMyTurn, dragStart, dragEnd]);
 
     // --- Input Handlers ---
 
@@ -276,17 +272,13 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
     useEffect(() => {
         if (!stompClient?.connected) return;
 
-        const sub = stompClient.subscribe(`/topic/game/${myId}`, (msg: any) => {
+        const sub = stompClient.subscribe(`/topic/game/${myId}`, (msg: { body: string }) => {
             const data = JSON.parse(msg.body);
 
             if (data.type === "GAME_MOVE_ANNOUNCE") {
                 const isMe = data.senderId === myId;
                 if (!isMe) {
-                    // Apply move to opponent's puck locally
-                    const index = data.senderId === myId ? 0 : 1; // Needs robust indexing
-                    // For now, assume player1 is always red
-                    // In a real app we'd map senderId to index accurately
-                    const idx = 1; // Temporary: only opponent can announce a move we don't have
+                    const idx = 1;
                     pucksRef.current[idx].vx = data.dx * 0.015;
                     pucksRef.current[idx].vy = data.dy * 0.015;
                 } else {
@@ -369,7 +361,7 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
                         {!isMyTurn && gameState && !gameState.winner && (
                             <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">
                                 <RefreshCw className="w-3 h-3 text-emerald-400 animate-spin" />
-                                <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Partner's Turn</span>
+                                <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Partner&apos;s Turn</span>
                             </div>
                         )}
                     </div>

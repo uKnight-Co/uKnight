@@ -9,7 +9,7 @@ export default function PrivacyPage() {
                     <p className="lead">Last updated: February 10, 2026</p>
 
                     <h2>1. Introduction</h2>
-                    <p>uKnight ("we", "our", "us") values your privacy. This Privacy Policy explains how we collect, use, and protect your information when you use our platform.</p>
+                    <p>uKnight (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) values your privacy. This Privacy Policy explains how we collect, use, and protect your information when you use our platform.</p>
 
                     <h2>2. Data We Collect</h2>
                     <ul>

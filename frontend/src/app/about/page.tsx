@@ -1,10 +1,6 @@
 "use client"
 
-import { Navbar } from "@/components/navbar"
-import { Footer } from "@/components/footer"
 import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
 
 export default function AboutPage() {
     return (
@@ -17,9 +13,9 @@ export default function AboutPage() {
                         animate={{ opacity: 1, y: 0 }}
                         className="mx-auto max-w-3xl text-center"
                     >
-                        <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">We're Building the Digital Campus.</h1>
+                        <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">We&apos;re Building the Digital Campus.</h1>
                         <p className="mt-6 text-lg leading-8 text-muted-foreground">
-                            uKnight is on a mission to restore the spontaneity of university life. In a world of scheduled Zoom calls and endless feeds, we're bringing back the magic of bumping into someone new on the quad.
+                            uKnight is on a mission to restore the spontaneity of university life. In a world of scheduled Zoom calls and endless feeds, we&apos;re bringing back the magic of bumping into someone new on the quad.
                         </p>
                     </motion.div>
                 </section>

@@ -3,8 +3,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
-import { ShieldCheck, Zap, Globe } from "lucide-react"
-
 import { LiveDemo } from "@/components/marketing/live-demo"
 
 import { Manifesto } from "@/components/marketing/manifesto"

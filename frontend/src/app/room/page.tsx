@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ArrowRight, Mic, MicOff, MoreVertical, PhoneOff, Send, Video, VideoOff, Flag } from "lucide-react"
+import { ArrowRight, Mic, PhoneOff, Send, Video, Flag } from "lucide-react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -25,22 +25,21 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 
-export default function RoomPage() {
-    const [messages, setMessages] = useState([
+function getInitialMessages() {
+    return [
         { id: 1, sender: "Stranger", text: "Hey! What's up?", timestamp: new Date(Date.now() - 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
         { id: 2, sender: "You", text: "Not much, just testing this new app. It looks clean!", timestamp: new Date(Date.now() - 30000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
-    ])
+    ]
+}
+
+export default function RoomPage() {
+    const [messages, setMessages] = useState(getInitialMessages)
     const [inputText, setInputText] = useState("")
     const [isTyping, setIsTyping] = useState(false)
     const [isReportOpen, setIsReportOpen] = useState(false)
     const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed" | "reconnecting">("connected")
 
-    // Simulate connection states
     useEffect(() => {
-        // Start connected
-        setConnectionState("connected")
-
-        // Simulate a disconnect/reconnect cycle
         const timer = setTimeout(() => {
             setConnectionState("reconnecting")
             setTimeout(() => setConnectionState("connected"), 3000)
@@ -93,7 +92,7 @@ export default function RoomPage() {
 
                     {/* Remote Video Placeholder */}
                     <div className="flex h-full w-full items-center justify-center">
-                        <span className="text-muted-foreground">Stranger's Video</span>
+                        <span className="text-muted-foreground">Stranger&apos;s Video</span>
                     </div>
 
                     {/* Local Video (PIP) */}

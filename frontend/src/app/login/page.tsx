@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from "firebase/auth"
+import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, User } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,7 +16,7 @@ export default function LoginPage() {
     const [error, setError] = useState("")
     const router = useRouter()
 
-    const syncUserWithBackend = async (user: any) => {
+    const syncUserWithBackend = async (user: User) => {
         try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
             await fetch(`${apiUrl}/api/users/login`, {
@@ -41,7 +41,7 @@ export default function LoginPage() {
             const result = await signInWithPopup(auth, provider)
             await syncUserWithBackend(result.user)
             router.push("/lobby")
-        } catch (err: any) {
+        } catch (err) {
             setError("Failed to sign in with Google.")
             console.error(err)
         }
@@ -53,7 +53,7 @@ export default function LoginPage() {
             const result = await signInWithEmailAndPassword(auth, email, password)
             await syncUserWithBackend(result.user)
             router.push("/lobby")
-        } catch (err: any) {
+        } catch (err) {
             setError("Invalid email or password.")
             console.error(err)
         }

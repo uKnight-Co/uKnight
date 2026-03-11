@@ -1,50 +1,38 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Mic, Video, PhoneOff } from "lucide-react"
 
+const conversation = [
+    { sender: "Stranger" as const, text: "Hey! Biology major here from UCLA. You?" },
+    { sender: "You" as const, text: "Comp Sci at Berkeley! Working on a project rn." },
+    { sender: "Stranger" as const, text: "No way, I'm stuck on a React bug myself lol." },
+    { sender: "You" as const, text: "Haha small world. Want to sync up?" },
+]
+
 export function LiveDemo() {
     const [step, setStep] = useState(0)
 
-    const [messages, setMessages] = useState<
-        { id: string; sender: "You" | "Stranger"; text: string }[]
-    >([])
+    const messages = useMemo(() => {
+        if (step === 0) {
+            return [{ id: "initial", ...conversation[0] }]
+        }
+        const visible = Math.min(step, conversation.length)
+        return conversation.slice(0, visible).map((msg, i) => ({
+            id: `msg-${i}`,
+            ...msg,
+        }))
+    }, [step])
 
-    const conversation = React.useMemo(() => [
-        { sender: "Stranger", text: "Hey! Biology major here from UCLA. You?" },
-        { sender: "You", text: "Comp Sci at Berkeley! Working on a project rn." },
-        { sender: "Stranger", text: "No way, I'm stuck on a React bug myself lol." },
-        { sender: "You", text: "Haha small world. Want to sync up?" },
-    ] as const, [])
-
-    // Interval to advance conversation steps
     useEffect(() => {
         const interval = setInterval(() => {
             setStep((prev) => (prev + 1) % (conversation.length + 4))
         }, 1500)
         return () => clearInterval(interval)
-    }, [conversation.length])
-
-    // Handle message additions based on current step
-    useEffect(() => {
-        if (step === 0) {
-            // Reset to first message at start of cycle
-            setMessages([{ id: "initial", ...conversation[0] }])
-        } else if (step > 1 && step <= conversation.length) {
-            // Add subsequent messages (skipping step 1 to prevent duplicating first message)
-            const nextMsg = conversation[step - 1]
-            setMessages((prevMsgs) => {
-                // Guard against duplicate additions in StrictMode
-                if (prevMsgs.some(m => m.text === nextMsg.text && m.sender === nextMsg.sender)) {
-                    return prevMsgs
-                }
-                return [...prevMsgs, { ...nextMsg, id: crypto.randomUUID() }]
-            })
-        }
-    }, [step, conversation])
+    }, [])
 
 
     return (

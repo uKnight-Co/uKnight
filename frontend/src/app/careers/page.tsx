@@ -13,10 +13,10 @@ export default function CareersPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="mx-auto max-w-2xl text-center"
                 >
-                    <Badge variant="outline" className="mb-4">We're Hiring</Badge>
+                    <Badge variant="outline" className="mb-4">We&apos;re Hiring</Badge>
                     <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Join the Knights of the Round Table.</h1>
                     <p className="mt-6 text-lg text-muted-foreground">
-                        Help us redefine how university students connect. We're looking for builders, dreamers, and night owls.
+                        Help us redefine how university students connect. We&apos;re looking for builders, dreamers, and night owls.
                     </p>
                 </motion.div>
 

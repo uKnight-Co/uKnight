@@ -17,7 +17,7 @@ export default function ContactPage() {
                     >
                         <h1 className="text-4xl font-bold tracking-tight">Get in touch.</h1>
                         <p className="mt-4 text-lg text-muted-foreground">
-                            Have a question, feedback, or just want to say hi? We'd love to hear from you.
+                            Have a question, feedback, or just want to say hi? We&apos;d love to hear from you.
                         </p>
 
                         <div className="mt-8 space-y-4">

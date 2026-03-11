@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Github, User, LogOut, Settings } from "lucide-react"
+import { User, LogOut, Settings } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import {
     DropdownMenu,
@@ -21,7 +22,7 @@ export function Navbar() {
             <div className="flex h-14 w-full items-center px-4 md:px-8">
                 <div className="mr-4 flex">
                     <Link className="mr-6 flex items-center space-x-2 lg:space-x-3" href="/">
-                        <img src="/logo.png" alt="uKnight Logo" className="h-8 w-8 rounded-full shadow-sm" />
+                        <Image src="/logo.png" alt="uKnight Logo" width={32} height={32} className="rounded-full shadow-sm" />
                         <span className="hidden font-bold sm:inline-block">uKnight</span>
                     </Link>
                 </div>

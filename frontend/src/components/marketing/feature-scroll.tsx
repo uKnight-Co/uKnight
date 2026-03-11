@@ -41,13 +41,8 @@ export function FeatureScroll() {
         offset: ["start end", "end start"],
     })
 
-    // 3D tilt driven by scroll — rotates from -8° to +8° on Y axis
     const rotateY = useTransform(scrollYProgress, [0, 0.5, 1], [12, 0, -12])
     const rotateX = useTransform(scrollYProgress, [0, 0.5, 1], [-6, 0, 6])
-
-    // Shadow distance shifts with scroll for realism
-    const shadowY = useTransform(scrollYProgress, [0, 0.5, 1], [30, 60, 30])
-    const shadowBlur = useTransform(scrollYProgress, [0, 0.5, 1], [40, 80, 40])
 
     return (
         <section ref={sectionRef} className="py-24 bg-background">

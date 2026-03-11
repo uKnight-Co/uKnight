@@ -5,6 +5,8 @@ import { User, onAuthStateChanged, signOut as firebaseSignOut } from "firebase/a
 import { auth } from "@/lib/firebase"
 import { useRouter, usePathname } from "next/navigation"
 
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/about", "/careers", "/contact", "/legal/privacy", "/legal/terms"]
+
 interface AuthContextType {
     user: User | null
     loading: boolean
@@ -51,10 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => unsubscribe()
     }, [])
 
-    const publicPaths = ["/", "/login", "/signup", "/about", "/careers", "/contact", "/legal/privacy", "/legal/terms"]
-
     useEffect(() => {
-        if (!loading && !user && !publicPaths.includes(pathname)) {
+        if (!loading && !user && !PUBLIC_PATHS.includes(pathname)) {
             router.push("/login")
         }
     }, [user, loading, pathname, router])
