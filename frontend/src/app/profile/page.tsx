@@ -5,8 +5,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { motion } from "framer-motion"
-import { GraduationCap, Clock, User as UserIcon, Calendar } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { GraduationCap, Clock, User as UserIcon, Calendar, Settings } from "lucide-react"
 import { useEffect, useState } from "react"
+import Link from "next/link"
 
 interface UserStats {
     numPeopleMet: number
@@ -58,7 +60,7 @@ export default function ProfilePage() {
     ]
 
     return (
-        <div className="container flex min-h-[calc(100vh-3.5rem)] max-w-4xl flex-col items-center py-10">
+        <div className="container mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-4xl flex-col items-center px-4 py-10 pt-20">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -105,15 +107,20 @@ export default function ProfilePage() {
                     ))}
                 </div>
 
-                {/* Account Settings Placeholder */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Account Settings</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex items-center justify-between">
                         <p className="text-sm text-muted-foreground">
-                            Preferences and account management features will be available soon.
+                            Manage your profile, preferences, and account settings.
                         </p>
+                        <Link href="/settings">
+                            <Button variant="outline" size="sm">
+                                <Settings className="mr-2 h-4 w-4" />
+                                Settings
+                            </Button>
+                        </Link>
                     </CardContent>
                 </Card>
             </motion.div>

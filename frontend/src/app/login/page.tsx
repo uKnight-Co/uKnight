@@ -16,27 +16,30 @@ export default function LoginPage() {
     const [error, setError] = useState("")
     const router = useRouter()
 
+    const syncUserWithBackend = async (user: any) => {
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+            await fetch(`${apiUrl}/api/users/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    email: user.email,
+                    displayName: user.displayName || user.email?.split("@")[0] || "Student",
+                    profilePicture: user.photoURL,
+                    verified: user.email?.endsWith(".edu") || false,
+                }),
+            })
+        } catch (err) {
+            console.warn("Backend sync failed, will retry on next visit:", err)
+        }
+    }
+
     const handleGoogleLogin = async () => {
         try {
             const provider = new GoogleAuthProvider()
             const result = await signInWithPopup(auth, provider)
-            const user = result.user
-
-            // Call backend to create/get user
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/users/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: user.uid,
-                    email: user.email,
-                    displayName: user.displayName,
-                    profilePicture: user.photoURL,
-                    verified: user.email?.endsWith('.edu') || false
-                }),
-            })
-
+            await syncUserWithBackend(result.user)
             router.push("/lobby")
         } catch (err: any) {
             setError("Failed to sign in with Google.")
@@ -48,23 +51,7 @@ export default function LoginPage() {
         e.preventDefault()
         try {
             const result = await signInWithEmailAndPassword(auth, email, password)
-            const user = result.user
-
-             // Call backend to create/get user
-             await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/users/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: user.uid,
-                    email: user.email,
-                    displayName: user.displayName || email.split('@')[0], // Fallback display name
-                    profilePicture: user.photoURL,
-                    verified: user.email?.endsWith('.edu') || false
-                }),
-            })
-
+            await syncUserWithBackend(result.user)
             router.push("/lobby")
         } catch (err: any) {
             setError("Invalid email or password.")

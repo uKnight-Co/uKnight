@@ -44,4 +44,28 @@ public class UserController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody User updatedFields) {
+        try {
+            return userService.getUserById(id)
+                    .map(existing -> {
+                        if (updatedFields.getDisplayName() != null)
+                            existing.setDisplayName(updatedFields.getDisplayName());
+                        if (updatedFields.getUniversityName() != null)
+                            existing.setUniversityName(updatedFields.getUniversityName());
+                        if (updatedFields.getSchoolYear() != null)
+                            existing.setSchoolYear(updatedFields.getSchoolYear());
+                        if (updatedFields.getShowUsername() != null)
+                            existing.setShowUsername(updatedFields.getShowUsername());
+                        if (updatedFields.getGender() != null)
+                            existing.setGender(updatedFields.getGender());
+                        return ResponseEntity.ok(userService.updateUser(existing));
+                    })
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            log.error("Error updating user {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
+    }
 }

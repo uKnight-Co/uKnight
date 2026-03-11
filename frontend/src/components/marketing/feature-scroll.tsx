@@ -51,7 +51,7 @@ export function FeatureScroll() {
 
     return (
         <section ref={sectionRef} className="py-24 bg-background">
-            <div className="container px-4 md:px-8">
+            <div className="container mx-auto px-4 md:px-8">
                 <div className="flex flex-col lg:flex-row gap-12 lg:gap-24">
 
                     {/* Scrollable Text Content */}

@@ -16,27 +16,31 @@ export default function SignupPage() {
     const [error, setError] = useState("")
     const router = useRouter()
 
+    const syncUserWithBackend = async (user: any) => {
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+            const res = await fetch(`${apiUrl}/api/users/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    email: user.email,
+                    displayName: user.displayName || user.email?.split("@")[0] || "Student",
+                    profilePicture: user.photoURL,
+                    verified: user.email?.endsWith(".edu") || false,
+                }),
+            })
+            if (!res.ok) console.warn("Backend returned non-OK status:", res.status)
+        } catch (err) {
+            console.warn("Backend sync failed, will retry on next visit:", err)
+        }
+    }
+
     const handleGoogleSignup = async () => {
         try {
             const provider = new GoogleAuthProvider()
             const result = await signInWithPopup(auth, provider)
-            const user = result.user
-
-             // Call backend to create/get user
-             await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/users/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: user.uid,
-                    email: user.email,
-                    displayName: user.displayName,
-                    profilePicture: user.photoURL,
-                    verified: user.email?.endsWith('.edu') || false
-                }),
-            })
-
+            await syncUserWithBackend(result.user)
             router.push("/lobby")
         } catch (err: any) {
             setError("Failed to sign up with Google.")
@@ -46,30 +50,9 @@ export default function SignupPage() {
 
     const handleEmailSignup = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!email.endsWith(".edu")) {
-            // setError("Please use a valid .edu email address.")
-            // return
-            // For prototype, we allow regular emails but warn.
-        }
         try {
             const result = await createUserWithEmailAndPassword(auth, email, password)
-            const user = result.user
-
-             // Call backend to create/get user
-             await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/users/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: user.uid,
-                    email: user.email,
-                    displayName: user.displayName || email.split('@')[0], // Fallback
-                    profilePicture: user.photoURL,
-                    verified: user.email?.endsWith('.edu') || false
-                }),
-            })
-
+            await syncUserWithBackend(result.user)
             router.push("/lobby")
         } catch (err: any) {
             setError(err.message)

@@ -14,14 +14,14 @@ import { schools } from "@/data/schools"
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <main className="flex-1">
+    <div className="flex min-h-screen flex-col items-center">
+      <main className="w-full flex-1">
         {/* Transformative Hero Section */}
         <section className="relative overflow-hidden border-b bg-background pt-32 pb-16 md:pt-48 md:pb-32">
           {/* Ambient Background */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-background opacity-40" />
 
-          <div className="container relative z-10 px-4 md:px-8">
+          <div className="container mx-auto relative z-10 px-4 md:px-8">
             <div className="grid gap-12 lg:grid-cols-2 lg:gap-8 items-center">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
@@ -70,7 +70,7 @@ export default function Home() {
 
         {/* Social Proof Ticker */}
         <section className="border-b bg-muted/20 py-10">
-          <div className="container px-4 text-center md:px-8">
+          <div className="container mx-auto px-4 text-center md:px-8">
             <p className="mb-6 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Trusted by students at</p>
             <div className="group overflow-hidden flex w-full">
               {/* To ensure a seamless scroll, we map the list enough times so it spans the width of the screen twice and animates by 50% */}

@@ -36,7 +36,7 @@ export function UKnightPlus() {
                 <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-amber-600/5 rounded-full blur-[120px]" />
             </div>
 
-            <div className="container relative z-10 px-4 md:px-8">
+            <div className="container mx-auto relative z-10 px-4 md:px-8">
                 <div className="text-center max-w-3xl mx-auto mb-16">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
