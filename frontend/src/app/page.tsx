@@ -1,6 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/context/auth-context"
+import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 import { ShieldCheck, Zap, Globe } from "lucide-react"
@@ -13,6 +16,17 @@ import { UKnightPlus } from "@/components/marketing/uknight-plus"
 import { schools } from "@/data/schools"
 
 export default function Home() {
+  const { user } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (user) {
+      router.push("/dashboard")
+    }
+  }, [user, router])
+
+  if (user) return null;
+
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex-1">

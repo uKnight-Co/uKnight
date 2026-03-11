@@ -483,7 +483,7 @@ export default function LobbyPage() {
             localStream.getAudioTracks().forEach(t => t.enabled = nextState);
         }
         if (currentPeerId) {
-            sendSignal({ type: 'MEDIA_STATE', targetPeerId: currentPeerId, mediaState: { audioEnabled: nextState, videoEnabled: isVideoOn }});
+            sendSignal({ type: 'MEDIA_STATE', targetPeerId: currentPeerId, mediaState: { audioEnabled: nextState, videoEnabled: isVideoOn } });
         }
     }
 
@@ -494,7 +494,7 @@ export default function LobbyPage() {
             localStream.getVideoTracks().forEach(t => t.enabled = nextState);
         }
         if (currentPeerId) {
-            sendSignal({ type: 'MEDIA_STATE', targetPeerId: currentPeerId, mediaState: { audioEnabled: isMicOn, videoEnabled: nextState }});
+            sendSignal({ type: 'MEDIA_STATE', targetPeerId: currentPeerId, mediaState: { audioEnabled: isMicOn, videoEnabled: nextState } });
         }
     }
 
@@ -606,7 +606,7 @@ export default function LobbyPage() {
                     playsInline
                     className="h-full w-full object-cover"
                 />
-                
+
                 {/* Remote Media Offline Overlay */}
                 {currentPeerId && !remoteVideoOn && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-10 transition-opacity">
@@ -614,7 +614,7 @@ export default function LobbyPage() {
                         <p className="text-white/70 text-lg font-medium">Partner turned off their camera</p>
                     </div>
                 )}
-                
+
                 {/* Remote Muted Icon */}
                 {currentPeerId && !remoteMicOn && remoteVideoOn && (
                     <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 bg-black/60 px-4 py-2 rounded-full backdrop-blur-md flex items-center gap-2 shadow-xl border border-white/10">
@@ -649,7 +649,6 @@ export default function LobbyPage() {
                     muted
                     playsInline
                     className={`h-full w-full object-cover ${!isVideoOn ? "hidden" : ""}`}
-                    style={{ transform: "scaleX(-1)" }}
                 />
                 {!isVideoOn && (
                     <div className="h-full w-full flex items-center justify-center text-white/50 text-xs">
