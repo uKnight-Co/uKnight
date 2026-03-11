@@ -10,6 +10,7 @@ import { LiveDemo } from "@/components/marketing/live-demo"
 import { Manifesto } from "@/components/marketing/manifesto"
 import { FeatureScroll } from "@/components/marketing/feature-scroll"
 import { UKnightPlus } from "@/components/marketing/uknight-plus"
+import { schools } from "@/data/schools"
 
 export default function Home() {
   return (
@@ -71,34 +72,20 @@ export default function Home() {
         <section className="border-b bg-muted/20 py-10">
           <div className="container px-4 text-center md:px-8">
             <p className="mb-6 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Trusted by students at</p>
-            <div className="overflow-hidden">
-              <div className="flex w-full justify-center animate-marquee gap-16 whitespace-nowrap opacity-50 grayscale transition-all hover:grayscale-0">
-                {["UCF"].map((uni) => (
-                  <span key={uni} className="text-xl font-bold">{uni}</span>
+            <div className="group overflow-hidden flex w-full">
+              {/* To ensure a seamless scroll, we map the list enough times so it spans the width of the screen twice and animates by 50% */}
+              <div className="flex w-max min-w-full animate-marquee shrink-0 gap-16 whitespace-nowrap opacity-50 grayscale transition-all group-hover:grayscale-0">
+                {schools.map((uni) => (
+                  <span key={uni.id} className="text-xl font-bold">{uni.shortName}</span>
                 ))}
-                {["UF"].map((uni) => (
-                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
+                {schools.map((uni) => (
+                  <span key={`${uni.id}-dup`} className="text-xl font-bold">{uni.shortName}</span>
                 ))}
-                {["FSU"].map((uni) => (
-                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
+                {schools.map((uni) => (
+                  <span key={`${uni.id}-dup2`} className="text-xl font-bold">{uni.shortName}</span>
                 ))}
-                {["FAU"].map((uni) => (
-                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
-                ))}
-                {["FGCU"].map((uni) => (
-                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
-                ))}
-                {["FIU"].map((uni) => (
-                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
-                ))}
-                {["USF"].map((uni) => (
-                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
-                ))}
-                {["UNF"].map((uni) => (
-                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
-                ))}
-                {["UM"].map((uni) => (
-                  <span key={uni + "-dup"} className="text-xl font-bold">{uni}</span>
+                {schools.map((uni) => (
+                  <span key={`${uni.id}-dup3`} className="text-xl font-bold">{uni.shortName}</span>
                 ))}
               </div>
             </div>
