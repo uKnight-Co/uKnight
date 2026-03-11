@@ -53,6 +53,9 @@ public class User {
     @Column(name = "profile_picture", length = 500)
     private String profilePicture;
 
+    @Column(name = "preferences", length = 2000)
+    private String preferences;
+
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
 

@@ -2,6 +2,9 @@ package com.uknight.server.service;
 
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Slf4j
@@ -9,6 +12,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class MatchmakingService {
 
     private final ConcurrentLinkedQueue<String> waitingUsers = new ConcurrentLinkedQueue<>();
+    private final ConcurrentHashMap<String, Set<String>> userPreferences = new ConcurrentHashMap<>();
 
     public void addUser(String sessionId) {
         if (!waitingUsers.contains(sessionId)) {
@@ -17,53 +21,76 @@ public class MatchmakingService {
         }
     }
 
+    public void setUserPreferences(String sessionId, Set<String> preferences) {
+        if (preferences != null && !preferences.isEmpty()) {
+            userPreferences.put(sessionId, preferences);
+        }
+    }
+
     public void removeUser(String sessionId) {
         waitingUsers.remove(sessionId);
+        userPreferences.remove(sessionId);
         log.info("User removed from matchmaking queue: {}", sessionId);
     }
 
     public String findMatch(String sessionId) {
-        // Simple FIFO matching
-        // If there is someone else in the queue, match with them.
-        // Note: This is a very basic implementation. 
-        // In a real scenario, we might want to check criteria, lock the queue, etc.
-        
-        // precise removal is tricky with concurrent queue if we just peek.
-        // simplified: 
-        
         synchronized (waitingUsers) {
-           // If I am the only one, return null
-           if (waitingUsers.size() < 2) {
-               return null;
-           }
-           
-           // Remove myself to not match with myself (should already be handled by logic flow but safe check)
-           // Actually, the controller calling this should probably not have added the user yet? 
-           // Or we optimize:
-           
-           // If we find someone who is NOT me
-           for (String waiter : waitingUsers) {
-               if (!waiter.equals(sessionId)) {
-                   waitingUsers.remove(waiter);
-                   waitingUsers.remove(sessionId); // Remove myself too as we are now matched
-                   return waiter;
-               }
-           }
+            if (waitingUsers.size() < 2) {
+                return null;
+            }
+
+            Set<String> myPrefs = userPreferences.getOrDefault(sessionId, Collections.emptySet());
+
+            // First pass: find someone with shared preferences
+            String bestMatch = null;
+            int bestOverlap = 0;
+
+            if (!myPrefs.isEmpty()) {
+                for (String waiter : waitingUsers) {
+                    if (waiter.equals(sessionId)) continue;
+                    Set<String> theirPrefs = userPreferences.getOrDefault(waiter, Collections.emptySet());
+                    if (theirPrefs.isEmpty()) continue;
+
+                    int overlap = 0;
+                    for (String pref : myPrefs) {
+                        if (theirPrefs.contains(pref)) overlap++;
+                    }
+                    if (overlap > bestOverlap) {
+                        bestOverlap = overlap;
+                        bestMatch = waiter;
+                    }
+                }
+            }
+
+            // If preference match found, use it; otherwise fall back to first available
+            if (bestMatch != null) {
+                log.info("Preference match found ({} shared): {} <-> {}", bestOverlap, sessionId, bestMatch);
+                waitingUsers.remove(bestMatch);
+                waitingUsers.remove(sessionId);
+                userPreferences.remove(bestMatch);
+                userPreferences.remove(sessionId);
+                return bestMatch;
+            }
+
+            // Fallback: random/FIFO match
+            for (String waiter : waitingUsers) {
+                if (!waiter.equals(sessionId)) {
+                    waitingUsers.remove(waiter);
+                    waitingUsers.remove(sessionId);
+                    userPreferences.remove(waiter);
+                    userPreferences.remove(sessionId);
+                    return waiter;
+                }
+            }
         }
         return null;
     }
-    
-    // Better Approach for polling:
-    // When a user joins, check if queue has someone.
-    // If yes, poll() them -> Match!
-    // If no, add myself via offer().
+
     public String attemptMatch(String sessionId) {
         synchronized (waitingUsers) {
             String partner = waitingUsers.poll();
-            
+
             if (partner != null) {
-                // Determine if the partner is still valid/connected? 
-                // For now assume yes.
                 log.info("Match found: {} <-> {}", sessionId, partner);
                 return partner;
             } else {

@@ -60,6 +60,8 @@ public class UserController {
                             existing.setShowUsername(updatedFields.getShowUsername());
                         if (updatedFields.getGender() != null)
                             existing.setGender(updatedFields.getGender());
+                        if (updatedFields.getPreferences() != null)
+                            existing.setPreferences(updatedFields.getPreferences());
                         return ResponseEntity.ok(userService.updateUser(existing));
                     })
                     .orElse(ResponseEntity.notFound().build());

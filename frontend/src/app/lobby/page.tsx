@@ -35,6 +35,22 @@ interface MatchData {
     initiator: boolean;
 }
 
+function getUserPreferences(uid: string): Promise<string[]> {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+    return fetch(`${apiUrl}/api/users/${uid}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+            if (!data?.preferences) return []
+            try {
+                const parsed = JSON.parse(data.preferences)
+                return Array.isArray(parsed) ? parsed : []
+            } catch {
+                return []
+            }
+        })
+        .catch(() => [])
+}
+
 export default function LobbyPage() {
     // Refs
     const videoRef = useRef<HTMLVideoElement>(null)
@@ -45,6 +61,7 @@ export default function LobbyPage() {
     const myUuid = useRef<string>(crypto.randomUUID())
     const lastNextTime = useRef<number>(0)
     const lastChatTime = useRef<number>(0)
+    const userPreferences = useRef<string[]>([])
 
     // Subscriptions
     const subscriptionMatch = useRef<StompSubscription | null>(null)
@@ -143,7 +160,11 @@ export default function LobbyPage() {
             stompClient.current.publish({
                 destination: '/app/join',
                 headers: { 'uuid': myUuid.current },
-                body: JSON.stringify({ university: "University of Central Florida", userId: firebaseUser?.uid || "" })
+                body: JSON.stringify({
+                    university: "University of Central Florida",
+                    userId: firebaseUser?.uid || "",
+                    preferences: userPreferences.current,
+                })
             });
         }
     }
@@ -553,6 +574,12 @@ export default function LobbyPage() {
 
         const uuid = myUuid.current;
 
+        if (firebaseUser?.uid) {
+            getUserPreferences(firebaseUser.uid).then((prefs) => {
+                userPreferences.current = prefs;
+            });
+        }
+
         const client = new Client({
             brokerURL: 'wss://uknight-backend-536429702801.us-central1.run.app/ws',
             reconnectDelay: 5000,
@@ -564,7 +591,11 @@ export default function LobbyPage() {
                 client.publish({
                     destination: '/app/join',
                     headers: { 'uuid': uuid },
-                    body: JSON.stringify({ university: "University of Central Florida", userId: firebaseUser?.uid || "" })
+                    body: JSON.stringify({
+                        university: "University of Central Florida",
+                        userId: firebaseUser?.uid || "",
+                        preferences: userPreferences.current,
+                    })
                 })
             },
             onStompError: (frame) => {

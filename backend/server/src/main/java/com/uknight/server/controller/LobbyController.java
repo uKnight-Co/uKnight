@@ -12,9 +12,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Controller
@@ -27,20 +25,28 @@ public class LobbyController {
     private final SessionTrackingService sessionTrackingService;
     private final UserService userService;
 
+    @SuppressWarnings("unchecked")
     @MessageMapping("/join")
-    public void joinLobby(@Payload Map<String, String> payload, SimpMessageHeaderAccessor headerAccessor) {
+    public void joinLobby(@Payload Map<String, Object> payload, SimpMessageHeaderAccessor headerAccessor) {
         String sessionId = headerAccessor.getFirstNativeHeader("uuid");
         if (sessionId == null) {
             sessionId = headerAccessor.getSessionId();
         }
 
-        String university = payload.getOrDefault("university", "Unknown");
-        String firebaseUid = payload.get("userId");
+        String university = String.valueOf(payload.getOrDefault("university", "Unknown"));
+        String firebaseUid = (String) payload.get("userId");
 
         log.info("Student joined the lobby from: {} (UUID: {}, userId: {})", university, sessionId, firebaseUid);
 
         if (firebaseUid != null && !firebaseUid.isBlank()) {
             sessionTrackingService.registerSession(sessionId, firebaseUid);
+        }
+
+        Object prefsObj = payload.get("preferences");
+        if (prefsObj instanceof List<?>) {
+            Set<String> prefs = new HashSet<>((List<String>) prefsObj);
+            matchmakingService.setUserPreferences(sessionId, prefs);
+            log.info("User {} has preferences: {}", sessionId, prefs);
         }
 
         matchmakingService.addUser(sessionId);

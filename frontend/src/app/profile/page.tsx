@@ -6,14 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { GraduationCap, Clock, User as UserIcon, Calendar, Settings } from "lucide-react"
+import { GraduationCap, Clock, User as UserIcon, Calendar, Settings, Heart } from "lucide-react"
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { PreferencesSelector } from "@/components/preferences-selector"
+import { toast } from "sonner"
 
-interface UserStats {
+interface UserData {
     numPeopleMet: number
     timeSpentMinutes: number
     createdAt: string | null
+    preferences: string | null
 }
 
 function formatTimeSpent(minutes: number): string {
@@ -29,34 +32,77 @@ function formatJoinDate(isoDate: string | null): string {
     return date.toLocaleDateString("en-US", { month: "short", year: "numeric" })
 }
 
+function parsePreferences(raw: string | null): string[] {
+    if (!raw || raw.trim() === "") return []
+    try {
+        const parsed = JSON.parse(raw)
+        return Array.isArray(parsed) ? parsed : []
+    } catch {
+        return raw.split(",").map((s) => s.trim()).filter(Boolean)
+    }
+}
+
 export default function ProfilePage() {
     const { user } = useAuth()
-    const [userStats, setUserStats] = useState<UserStats | null>(null)
+    const [userData, setUserData] = useState<UserData | null>(null)
+    const [preferences, setPreferences] = useState<string[]>([])
+    const [savingPrefs, setSavingPrefs] = useState(false)
 
     useEffect(() => {
         if (!user?.uid) return
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
         fetch(`${apiUrl}/api/users/${user.uid}`)
-            .then(res => res.ok ? res.json() : null)
-            .then(data => {
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
                 if (data) {
-                    setUserStats({
+                    setUserData({
                         numPeopleMet: data.numPeopleMet ?? 0,
                         timeSpentMinutes: data.timeSpentMinutes ?? 0,
                         createdAt: data.createdAt ?? null,
+                        preferences: data.preferences ?? null,
                     })
+                    setPreferences(parsePreferences(data.preferences))
                 }
             })
-            .catch(err => console.error("Failed to fetch user stats:", err))
+            .catch((err) => console.error("Failed to fetch user data:", err))
     }, [user?.uid])
+
+    const handleSavePreferences = async (newPrefs: string[]) => {
+        if (!user?.uid) return
+        setSavingPrefs(true)
+
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+            const res = await fetch(`${apiUrl}/api/users/${user.uid}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    email: user.email,
+                    preferences: JSON.stringify(newPrefs),
+                }),
+            })
+
+            if (res.ok) {
+                setPreferences(newPrefs)
+                toast.success("Passions updated!")
+            } else {
+                toast.error("Failed to save passions.")
+            }
+        } catch {
+            toast.error("Could not reach server.")
+        } finally {
+            setSavingPrefs(false)
+        }
+    }
 
     if (!user) return null
 
     const stats = [
-        { label: "People Met", value: userStats ? String(userStats.numPeopleMet) : "—", icon: UserIcon },
-        { label: "Time Chatted", value: userStats ? formatTimeSpent(userStats.timeSpentMinutes) : "—", icon: Clock },
-        { label: "Joined", value: userStats ? formatJoinDate(userStats.createdAt) : "—", icon: Calendar },
+        { label: "People Met", value: userData ? String(userData.numPeopleMet) : "—", icon: UserIcon },
+        { label: "Time Chatted", value: userData ? formatTimeSpent(userData.timeSpentMinutes) : "—", icon: Clock },
+        { label: "Joined", value: userData ? formatJoinDate(userData.createdAt) : "—", icon: Calendar },
     ]
 
     return (
@@ -106,6 +152,25 @@ export default function ProfilePage() {
                         </Card>
                     ))}
                 </div>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="flex items-center gap-2">
+                            <Heart className="h-5 w-5 text-primary" />
+                            Passions
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <PreferencesSelector
+                            selected={preferences}
+                            onSave={handleSavePreferences}
+                            saving={savingPrefs}
+                        />
+                        <p className="mt-3 text-xs text-muted-foreground">
+                            Your passions help us match you with students who share your interests.
+                        </p>
+                    </CardContent>
+                </Card>
 
                 <Card>
                     <CardHeader>
