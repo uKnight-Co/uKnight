@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -55,6 +56,11 @@ public class User {
 
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "interest")
+    private List<String> interests;
 
     @PrePersist
     protected void onCreate() {

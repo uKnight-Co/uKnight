@@ -16,7 +16,7 @@ export default function SignupPage() {
     const [error, setError] = useState("")
     const router = useRouter()
 
-    const syncUserWithBackend = async (user: User) => {
+    const syncUserAndRedirect = async (user: User) => {
         try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
             const res = await fetch(`${apiUrl}/api/users/login`, {
@@ -27,12 +27,24 @@ export default function SignupPage() {
                     email: user.email,
                     displayName: user.displayName || user.email?.split("@")[0] || "Student",
                     profilePicture: user.photoURL,
-                    verified: user.email?.endsWith(".edu") || false,
                 }),
             })
-            if (!res.ok) console.warn("Backend returned non-OK status:", res.status)
+
+            if (res.ok) {
+                const userData = await res.json()
+                if (userData.verified) {
+                    router.push("/lobby")
+                } else {
+                    router.push("/verify-email")
+                }
+            } else {
+                setError("Failed to register with database. Please try again.")
+                await auth.signOut()
+            }
         } catch (err) {
-            console.warn("Backend sync failed, will retry on next visit:", err)
+            console.warn("Backend sync failed:", err)
+            setError("Cannot connect to server. Please ensure backend is running.")
+            await auth.signOut()
         }
     }
 
@@ -40,8 +52,7 @@ export default function SignupPage() {
         try {
             const provider = new GoogleAuthProvider()
             const result = await signInWithPopup(auth, provider)
-            await syncUserWithBackend(result.user)
-            router.push("/lobby")
+            await syncUserAndRedirect(result.user)
         } catch (err) {
             setError("Failed to sign up with Google.")
             console.error(err)
@@ -52,8 +63,7 @@ export default function SignupPage() {
         e.preventDefault()
         try {
             const result = await createUserWithEmailAndPassword(auth, email, password)
-            await syncUserWithBackend(result.user)
-            router.push("/lobby")
+            await syncUserAndRedirect(result.user)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create account.")
         }

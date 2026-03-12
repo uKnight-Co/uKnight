@@ -16,10 +16,10 @@ export default function LoginPage() {
     const [error, setError] = useState("")
     const router = useRouter()
 
-    const syncUserWithBackend = async (user: User) => {
+    const syncUserAndRedirect = async (user: User) => {
         try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
-            await fetch(`${apiUrl}/api/users/login`, {
+            const res = await fetch(`${apiUrl}/api/users/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -27,11 +27,24 @@ export default function LoginPage() {
                     email: user.email,
                     displayName: user.displayName || user.email?.split("@")[0] || "Student",
                     profilePicture: user.photoURL,
-                    verified: user.email?.endsWith(".edu") || false,
                 }),
             })
+
+            if (res.ok) {
+                const userData = await res.json()
+                if (userData.verified) {
+                    router.push("/lobby")
+                } else {
+                    router.push("/verify-email")
+                }
+            } else {
+                setError("Failed to sync with database. Please try again.")
+                await auth.signOut()
+            }
         } catch (err) {
-            console.warn("Backend sync failed, will retry on next visit:", err)
+            console.warn("Backend sync failed:", err)
+            setError("Cannot connect to server. Please ensure backend is running.")
+            await auth.signOut()
         }
     }
 
@@ -39,8 +52,7 @@ export default function LoginPage() {
         try {
             const provider = new GoogleAuthProvider()
             const result = await signInWithPopup(auth, provider)
-            await syncUserWithBackend(result.user)
-            router.push("/lobby")
+            await syncUserAndRedirect(result.user)
         } catch (err) {
             setError("Failed to sign in with Google.")
             console.error(err)
@@ -51,8 +63,7 @@ export default function LoginPage() {
         e.preventDefault()
         try {
             const result = await signInWithEmailAndPassword(auth, email, password)
-            await syncUserWithBackend(result.user)
-            router.push("/lobby")
+            await syncUserAndRedirect(result.user)
         } catch (err) {
             setError("Invalid email or password.")
             console.error(err)

@@ -35,6 +35,99 @@ interface MatchData {
     initiator: boolean;
 }
 
+const BouncingCircles = () => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const circlesRef = useRef<(HTMLDivElement | null)[]>([]);
+    const stateRef = useRef<any[]>([]);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const width = containerRef.current.clientWidth;
+        const height = containerRef.current.clientHeight;
+
+        // Initialize state
+        stateRef.current = Array.from({ length: 8 }).map((_, i) => {
+            const size = 60 + Math.random() * 120;
+            const speed = 1.5 + Math.random() * 2;
+            const angle = Math.random() * Math.PI * 2;
+            return {
+                x: Math.random() * Math.max(0, width - size),
+                y: Math.random() * Math.max(0, height - size),
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size,
+                color: `var(--chart-${(i % 5) + 1})`
+            };
+        });
+
+        // Apply initial static styles
+        stateRef.current.forEach((circle, i) => {
+            const el = circlesRef.current[i];
+            if (el) {
+                el.style.width = `${circle.size}px`;
+                el.style.height = `${circle.size}px`;
+                el.style.backgroundColor = circle.color;
+            }
+        });
+
+        let animationFrameId: number;
+
+        const animate = () => {
+            if (containerRef.current) {
+                const currentWidth = containerRef.current.clientWidth;
+                const currentHeight = containerRef.current.clientHeight;
+
+                stateRef.current.forEach((circle, i) => {
+                    circle.x += circle.vx;
+                    circle.y += circle.vy;
+
+                    // Bounce off edges (DVD style)
+                    if (circle.x <= 0) {
+                        circle.x = 0;
+                        circle.vx *= -1;
+                    } else if (circle.x + circle.size >= currentWidth) {
+                        circle.x = currentWidth - circle.size;
+                        circle.vx *= -1;
+                    }
+
+                    if (circle.y <= 0) {
+                        circle.y = 0;
+                        circle.vy *= -1;
+                    } else if (circle.y + circle.size >= currentHeight) {
+                        circle.y = currentHeight - circle.size;
+                        circle.vy *= -1;
+                    }
+
+                    const el = circlesRef.current[i];
+                    if (el) {
+                        el.style.transform = `translate(${circle.x}px, ${circle.y}px)`;
+                    }
+                });
+            }
+            animationFrameId = requestAnimationFrame(animate);
+        };
+
+        animationFrameId = requestAnimationFrame(animate);
+
+        return () => cancelAnimationFrame(animationFrameId);
+    }, []);
+
+    return (
+        <div ref={containerRef} className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+            {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                    key={i}
+                    ref={(el) => {
+                        circlesRef.current[i] = el;
+                    }}
+                    className="absolute rounded-full mix-blend-screen filter blur-xl opacity-40 will-change-transform top-0 left-0"
+                />
+            ))}
+        </div>
+    );
+};
+
 export default function LobbyPage() {
     // Refs
     const videoRef = useRef<HTMLVideoElement>(null)
@@ -625,13 +718,16 @@ export default function LobbyPage() {
 
                 {/* Status Overlay */}
                 {!currentPeerId && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md z-10">
-                        <div className="text-center">
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-md z-10 overflow-hidden">
+                        <BouncingCircles />
+                        
+                        {/* Waiting Text */}
+                        <div className="text-center relative z-10">
                             <div className="relative">
                                 <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse"></div>
                                 <Users className="h-16 w-16 text-primary mx-auto mb-4 relative z-10" />
                             </div>
-                            <p className="text-white text-lg font-medium animate-pulse">{status}</p>
+                            <p className="text-foreground text-lg font-medium animate-pulse">{status}</p>
                         </div>
                     </div>
                 )}

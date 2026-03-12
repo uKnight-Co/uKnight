@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trophy, RefreshCw, Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ type KnockoutProps = {
 const CANVAS_SIZE = 400;
 const PLATFORM_RADIUS = 0.45;
 const VISUAL_PLATFORM_RADIUS = 180;
+const MAX_SHOT_POWER = 150; // Clamp max drag distance
 
 function shadeColor(col: string, amt: number) {
     const usePound = col[0] === "#";
@@ -94,8 +95,20 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [dragEnd, setDragEnd] = useState({ x: 0, y: 0 });
-    const [isMyTurn, setIsMyTurn] = useState(false);
+    const [isMyTurn, setIsMyTurn] = useState(true); // Start as true so player1 can move
     const [renderTrigger, setRenderTrigger] = useState(0);
+
+    // Determine which puck index is mine based on the game state
+    const getMyPuckIndex = useCallback((): number => {
+        if (!gameState) return 0; // Default to player 1 before game state arrives
+        // The server creates the game with player1 = invite sender, player2 = accepter
+        // We figure out which one we are by checking if our ID matches player data
+        // Since pucks[0] = player1 and pucks[1] = player2, and the game state
+        // carries currentTurn as the player ID, we check against stored game data
+        // For now: if we're the opponent (the one who was invited), we're index 1
+        if (myId === opponentId) return 1;
+        return 0;
+    }, [gameState, myId, opponentId]);
 
     // --- Physics Helpers (Mirrored from Backend) ---
 
@@ -137,7 +150,6 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
             const p = pucksRef.current;
             let moved = false;
 
-            // Update positions and apply friction
             for (const puck of p) {
                 if (Math.abs(puck.vx) > 0.0001 || Math.abs(puck.vy) > 0.0001) {
                     puck.x += puck.vx;
@@ -217,54 +229,96 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
                 ctx.fill();
                 ctx.strokeStyle = "#10b981";
                 ctx.stroke();
+
+                // Power indicator text
+                const power = Math.min(Math.round((magnitude / MAX_SHOT_POWER) * 100), 100);
+                ctx.fillStyle = "#10b981";
+                ctx.font = "bold 12px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(`${power}%`, dragStart.x, dragStart.y - Math.min(magnitude / 2, 60) - 8);
             }
         }
     }, [renderTrigger, isDragging, isMyTurn, dragStart, dragEnd]);
 
     // --- Input Handlers ---
 
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (!isMyTurn) return;
+    const getCanvasCoords = (clientX: number, clientY: number) => {
         const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
+        if (!rect) return null;
+        // Scale coordinates to canvas space (handles CSS scaling)
+        const scaleX = CANVAS_SIZE / rect.width;
+        const scaleY = CANVAS_SIZE / rect.height;
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY,
+        };
+    };
 
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+    const startDrag = (clientX: number, clientY: number) => {
+        if (!isMyTurn) return;
+        const coords = getCanvasCoords(clientX, clientY);
+        if (!coords) return;
 
-        const myIndex = gameState?.pucks[0]?.radius ? (myId === opponentId ? 1 : 0) : 0; // Simple fallback
-        // Better indexing: check who we are in the game
+        const myIndex = getMyPuckIndex();
         const p = pucksRef.current[myIndex];
         const px = CANVAS_SIZE / 2 + p.x * (CANVAS_SIZE / 2);
         const py = CANVAS_SIZE / 2 + p.y * (CANVAS_SIZE / 2);
         const pr = p.radius * (CANVAS_SIZE / 2);
 
-        if (Math.sqrt((x - px) ** 2 + (y - py) ** 2) < pr + 20) {
+        if (Math.sqrt((coords.x - px) ** 2 + (coords.y - py) ** 2) < pr + 25) {
             setIsDragging(true);
             setDragStart({ x: px, y: py });
-            setDragEnd({ x, y });
+            setDragEnd(coords);
         }
     };
 
-    const handleMouseMove = (e: React.MouseEvent) => {
+    const moveDrag = (clientX: number, clientY: number) => {
         if (!isDragging) return;
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        setDragEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        const coords = getCanvasCoords(clientX, clientY);
+        if (!coords) return;
+        setDragEnd(coords);
     };
 
-    const handleMouseUp = () => {
+    const endDrag = () => {
         if (!isDragging) return;
         setIsDragging(false);
 
         const dx = dragEnd.x - dragStart.x;
         const dy = dragEnd.y - dragStart.y;
-        if (Math.sqrt(dx * dx + dy * dy) > 20) {
+        const magnitude = Math.sqrt(dx * dx + dy * dy);
+
+        if (magnitude > 20 && stompClient?.connected) {
+            // Clamp the shot power
+            const clampedDx = magnitude > MAX_SHOT_POWER ? (dx / magnitude) * MAX_SHOT_POWER : dx;
+            const clampedDy = magnitude > MAX_SHOT_POWER ? (dy / magnitude) * MAX_SHOT_POWER : dy;
+
             stompClient.publish({
                 destination: "/app/game/move",
                 headers: { uuid: myId },
-                body: JSON.stringify({ matchId, dx, dy })
+                body: JSON.stringify({ matchId, dx: clampedDx, dy: clampedDy })
             });
         }
+    };
+
+    // Mouse handlers
+    const handleMouseDown = (e: React.MouseEvent) => startDrag(e.clientX, e.clientY);
+    const handleMouseMove = (e: React.MouseEvent) => moveDrag(e.clientX, e.clientY);
+    const handleMouseUp = () => endDrag();
+
+    // Touch handlers
+    const handleTouchStart = (e: React.TouchEvent) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        startDrag(touch.clientX, touch.clientY);
+    };
+    const handleTouchMove = (e: React.TouchEvent) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        moveDrag(touch.clientX, touch.clientY);
+    };
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        e.preventDefault();
+        endDrag();
     };
 
     // --- WebSocket Handlers ---
@@ -278,19 +332,21 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
             if (data.type === "GAME_MOVE_ANNOUNCE") {
                 const isMe = data.senderId === myId;
                 if (!isMe) {
-                    const idx = 1;
-                    pucksRef.current[idx].vx = data.dx * 0.015;
-                    pucksRef.current[idx].vy = data.dy * 0.015;
+                    // Opponent's move → apply to opponent puck index
+                    const opponentIndex = getMyPuckIndex() === 0 ? 1 : 0;
+                    pucksRef.current[opponentIndex].vx = data.dx * 0.015;
+                    pucksRef.current[opponentIndex].vy = data.dy * 0.015;
                 } else {
-                    // Apply move to my puck
-                    pucksRef.current[0].vx = data.dx * 0.015;
-                    pucksRef.current[0].vy = data.dy * 0.015;
+                    // My move echoed back → apply to my puck
+                    const myIndex = getMyPuckIndex();
+                    pucksRef.current[myIndex].vx = data.dx * 0.015;
+                    pucksRef.current[myIndex].vy = data.dy * 0.015;
                 }
             } else if (data.type === "GAME_STATE_SYNC") {
                 setGameState(data);
                 setIsMyTurn(data.currentTurn === myId);
 
-                // Absolute reconciliation (stop current movement if any)
+                // Absolute reconciliation
                 if (data.pucks[0]) {
                     pucksRef.current[0].x = data.pucks[0].x;
                     pucksRef.current[0].y = data.pucks[0].y;
@@ -307,7 +363,7 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
         });
 
         return () => sub.unsubscribe();
-    }, [stompClient, myId]);
+    }, [stompClient, myId, getMyPuckIndex]);
 
     return (
         <AnimatePresence>
@@ -317,8 +373,8 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md"
             >
-                <div className="bg-slate-900 border border-white/10 rounded-3xl p-6 shadow-2xl w-[450px]">
-                    <div className="flex items-center justify-between mb-6">
+                <div className="bg-slate-900 border border-white/10 rounded-3xl p-4 md:p-6 shadow-2xl w-[95vw] max-w-[450px]">
+                    <div className="flex items-center justify-between mb-4 md:mb-6">
                         <div className="flex items-center gap-2">
                             <div className="bg-emerald-500/20 p-2 rounded-lg">
                                 <Gamepad2 className="w-5 h-5 text-emerald-400" />
@@ -330,10 +386,12 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
                         </Button>
                     </div>
 
-                    <div className="flex justify-around items-center mb-6 bg-white/5 rounded-2xl py-4 border border-white/5">
+                    <div className="flex justify-around items-center mb-4 md:mb-6 bg-white/5 rounded-2xl py-3 md:py-4 border border-white/5">
                         <div className="text-center">
-                            <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Player 1</p>
-                            <p className={`text-2xl font-black ${isMyTurn ? 'text-emerald-400' : 'text-white'}`}>{gameState?.player1Score || 0}</p>
+                            <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">You</p>
+                            <p className={`text-2xl font-black ${isMyTurn ? 'text-emerald-400' : 'text-white'}`}>
+                                {getMyPuckIndex() === 0 ? (gameState?.player1Score || 0) : (gameState?.player2Score || 0)}
+                            </p>
                         </div>
                         <div className="h-8 w-px bg-white/10" />
                         <div className="text-center">
@@ -342,12 +400,14 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
                         </div>
                         <div className="h-8 w-px bg-white/10" />
                         <div className="text-center">
-                            <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Player 2</p>
-                            <p className={`text-2xl font-black ${!isMyTurn ? 'text-emerald-400' : 'text-white'}`}>{gameState?.player2Score || 0}</p>
+                            <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Partner</p>
+                            <p className={`text-2xl font-black ${!isMyTurn ? 'text-emerald-400' : 'text-white'}`}>
+                                {getMyPuckIndex() === 0 ? (gameState?.player2Score || 0) : (gameState?.player1Score || 0)}
+                            </p>
                         </div>
                     </div>
 
-                    <div className="relative group">
+                    <div className="relative group flex justify-center">
                         <canvas
                             ref={canvasRef}
                             width={CANVAS_SIZE}
@@ -356,8 +416,17 @@ export function KnockoutGame({ matchId, myId, opponentId, stompClient, onClose }
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
                             onMouseLeave={handleMouseUp}
-                            className={`rounded-2xl transition-all ${isMyTurn ? 'cursor-crosshair' : 'cursor-wait'} ring-1 ring-white/10 shadow-inner`}
+                            onTouchStart={handleTouchStart}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                            className={`rounded-2xl transition-all w-full max-w-[400px] ${isMyTurn ? 'cursor-crosshair' : 'cursor-wait'} ring-1 ring-white/10 shadow-inner`}
+                            style={{ touchAction: 'none' }}
                         />
+                        {isMyTurn && !gameState?.winner && (
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-emerald-500/20 backdrop-blur-md rounded-full border border-emerald-500/30 flex items-center gap-2">
+                                <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Your Turn — Drag to Shoot!</span>
+                            </div>
+                        )}
                         {!isMyTurn && gameState && !gameState.winner && (
                             <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">
                                 <RefreshCw className="w-3 h-3 text-emerald-400 animate-spin" />

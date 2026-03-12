@@ -60,6 +60,15 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    public User verifyUser(String userId, Boolean verified, String schoolEmail) {
+        return userRepository.findById(userId).map(user -> {
+            if (verified != null) user.setVerified(verified);
+            if (schoolEmail != null && !schoolEmail.isBlank()) user.setSchoolEmail(schoolEmail);
+            log.info("Verifying user {}: verified={}, schoolEmail={}", userId, verified, schoolEmail);
+            return userRepository.save(user);
+        }).orElse(null);
+    }
+
     public void incrementPeopleMet(String userId) {
         userRepository.findById(userId).ifPresent(user -> {
             user.setNumPeopleMet((user.getNumPeopleMet() == null ? 0 : user.getNumPeopleMet()) + 1);
