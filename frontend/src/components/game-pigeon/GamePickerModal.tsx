@@ -8,7 +8,7 @@ import type { GameDefinition } from "./types";
 import { TicTacToe } from "./games/TicTacToe";
 import { Connect4 } from "./games/Connect4";
 import { WordScramble } from "./games/WordScramble";
-import { MathDuel } from "./games/MathDuel";
+import { Knockout } from "./games/Knockout";
 import { MemoryMatch } from "./games/MemoryMatch";
 import { RockPaperScissors } from "./games/RockPaperScissors";
 import { Snake } from "./games/Snake";
@@ -36,10 +36,10 @@ export const GAMES: GameDefinition[] = [
     component: WordScramble,
   },
   {
-    id: "mathduel", name: "Math Duel", emoji: "🧮",
-    tagline: "Solve equations faster",
-    rules: "Players alternate answering math problems under a time limit. Each correct answer scores a point. Most correct answers out of 10 wins! Choose Easy (add/sub), Medium (multiply), or Hard (complex).",
-    component: MathDuel,
+    id: "knockout", name: "Knockout", emoji: "🥊",
+    tagline: "Knock pucks off the platform!",
+    rules: "Two pucks face off on a circular platform. Take turns dragging and shooting your puck to knock the opponent's off the edge! 5 rounds — most knockouts wins. Red = You, Blue = Stranger.",
+    component: Knockout,
   },
   {
     id: "memorymatch", name: "Memory Match", emoji: "🃏",
