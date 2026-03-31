@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, SkipForward } from "lucide-react"
+import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, SkipForward, Gamepad2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MediaDeviceSelector } from "@/components/media-device-selector"
 import { useMediaStore } from "@/store/media-store"
@@ -12,11 +12,15 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Client, IMessage, StompSubscription } from "@stomp/stompjs"
 import { Input } from "@/components/ui/input"
 import { KnockoutGame } from "@/components/knockout/KnockoutGame"
+import { GamePickerModal, GAMES } from "@/components/game-pigeon/GamePickerModal"
+import { GameOverlay } from "@/components/game-pigeon/GameOverlay"
+import type { GameResult } from "@/components/game-pigeon/types"
 
 type ChatMessage = {
-    id: string; // Unique ID for keys
+    id: string;
     sender: 'me' | 'partner';
     text: string;
+    gameResult?: GameResult;
 }
 
 type SignalType = 'OFFER' | 'ANSWER' | 'ICE' | 'BYE' | 'MEDIA_STATE';
@@ -38,7 +42,7 @@ interface MatchData {
 const BouncingCircles = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const circlesRef = useRef<(HTMLDivElement | null)[]>([]);
-    const stateRef = useRef<any[]>([]);
+    const stateRef = useRef<{ x: number; y: number; vx: number; vy: number; size: number; color: string }[]>([]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -163,6 +167,15 @@ export default function LobbyPage() {
     const [isGameActive, setIsGameActive] = useState(false)
     const [gameMatchId, setGameMatchId] = useState<string | null>(null)
     const [gameInvite, setGameInvite] = useState<{ senderId: string, matchId: string } | null>(null)
+
+    // Game Pigeon state
+    const [isGamePickerOpen, setIsGamePickerOpen] = useState(false)
+    const [activeGameId, setActiveGameId] = useState<string | null>(null)
+    const [modularQueue, setModularQueue] = useState<string[] | null>(null)
+    const [gamePigeonMatchId, setGamePigeonMatchId] = useState<string | null>(null)
+    const [gamePigeonRole, setGamePigeonRole] = useState<"initiator" | "responder" | null>(null)
+    const [gamePigeonLastMove, setGamePigeonLastMove] = useState<Record<string, unknown> | null>(null)
+    const [gamePigeonInvite, setGamePigeonInvite] = useState<{ senderId: string; matchId: string; gameType: string } | null>(null)
 
     // --- Mutable refs for latest callbacks and state ---
     const localStreamRef = useRef<MediaStream | null>(null)
@@ -469,22 +482,57 @@ export default function LobbyPage() {
 
             if (data.type === 'GAME_INVITE_SENT_CONFIRM') {
                 console.log("Server confirmed invite sent to:", data.targetPeerId);
-                setChatMessages(prev => [...prev, {
-                    id: crypto.randomUUID(),
-                    sender: 'me',
-                    text: `(Server confirmed: Invite delivered to partner)`
-                }]);
             } else if (data.type === 'GAME_INVITE') {
-                setGameInvite({ senderId: data.senderId, matchId: data.matchId });
-                // Also show in chat for better visibility
-                setChatMessages(prev => [...prev, {
-                    id: crypto.randomUUID(),
-                    sender: 'partner',
-                    text: "Challenge! Partner wants to play Knockout. Use the buttons above to respond."
-                }]);
+                const gameType: string = data.gameType || '';
+                // Route to Knockout or Game Pigeon
+                if (gameType === 'knockout') {
+                    setGameInvite({ senderId: data.senderId, matchId: data.matchId });
+                    setChatMessages(prev => [...prev, {
+                        id: crypto.randomUUID(),
+                        sender: 'partner',
+                        text: "⚔️ Partner wants to play Knockout!"
+                    }]);
+                } else {
+                    const isTournament = gameType.startsWith('tournament:');
+                    let displayName = gameType;
+                    if (isTournament) {
+                        const games = gameType.split(':')[1].split(',');
+                        displayName = `Tournament (${games.length} games)`;
+                    } else {
+                        displayName = GAMES.find(g => g.id === gameType)?.name ?? gameType;
+                    }
+
+                    // Game Pigeon invite
+                    setGamePigeonInvite({ senderId: data.senderId, matchId: data.matchId, gameType });
+                    setChatMessages(prev => [...prev, {
+                        id: crypto.randomUUID(),
+                        sender: 'partner',
+                        text: `🎮 Partner challenged you to ${displayName}! Check the invite below.`
+                    }]);
+                    setIsChatOpen(true);
+                }
             } else if (data.type === 'GAME_START') {
-                setGameMatchId(data.matchId);
-                setIsGameActive(true);
+                const gameType: string = data.gameType || '';
+                if (gameType === 'knockout' || !gameType) {
+                    setGameMatchId(data.matchId);
+                    setIsGameActive(true);
+                } else {
+                    // Game Pigeon start — we are responder since GAME_START comes to the accept sender
+                    // Role is embedded in payload
+                    setGamePigeonMatchId(data.matchId);
+                    setGamePigeonRole(data.role || 'responder');
+                    const isTournament = data.gameType.startsWith('tournament:');
+                    if (isTournament) {
+                        setActiveGameId(null);
+                        setModularQueue(data.gameType.split(':')[1].split(','));
+                    } else {
+                        setActiveGameId(data.gameType);
+                        setModularQueue(null);
+                    }
+                }
+            } else if (data.type === 'GAME_MOVE') {
+                // Relay opponent move to the active game component
+                setGamePigeonLastMove(data.action || null);
             }
         })
     }
@@ -523,19 +571,55 @@ export default function LobbyPage() {
             return;
         }
 
-        console.log("Sending game invite to:", currentPeerId);
-
-        // Add feedback to chat history for the sender
         setChatMessages(prev => [...prev, {
             id: crypto.randomUUID(),
             sender: 'me',
-            text: "Challenge sent! Waiting for partner to accept..."
+            text: "⚔️ Knockout challenge sent! Waiting for partner to accept..."
         }]);
 
         stompClient.current.publish({
             destination: '/app/game/invite',
             headers: { 'uuid': myUuid.current },
             body: JSON.stringify({ targetPeerId: currentPeerId, gameType: 'knockout' })
+        });
+    }
+
+    const sendGamePigeonInvite = (gameData: string | string[]) => {
+        if (!currentPeerId || !stompClient.current?.connected) return;
+
+        const isTournament = Array.isArray(gameData);
+        const gameTypeStr = isTournament ? `tournament:${gameData.join(',')}` : (gameData as string);
+        
+        let displayName = gameData as string;
+        if (isTournament) {
+            displayName = `Tournament (${gameData.length} games)`;
+        } else {
+            displayName = GAMES.find(g => g.id === gameData)?.name ?? (gameData as string);
+        }
+
+        setChatMessages(prev => [...prev, {
+            id: crypto.randomUUID(),
+            sender: 'me',
+            text: `🎮 Game invite sent: ${displayName}. Waiting for partner...`
+        }]);
+        setIsChatOpen(true);
+
+        stompClient.current.publish({
+            destination: '/app/game/invite',
+            headers: { 'uuid': myUuid.current },
+            body: JSON.stringify({ targetPeerId: currentPeerId, gameType: gameTypeStr })
+        });
+
+        // Optimistically set role as initiator and wait for GAME_START
+        setGamePigeonRole('initiator');
+    }
+
+    const sendGamePigeonMove = (action: Record<string, unknown>) => {
+        if (!gamePigeonMatchId || !currentPeerId || !stompClient.current?.connected) return;
+        stompClient.current.publish({
+            destination: '/app/game/move',
+            headers: { 'uuid': myUuid.current },
+            body: JSON.stringify({ matchId: gamePigeonMatchId, targetPeerId: currentPeerId, action, type: 'GAME_MOVE', dx: 0, dy: 0 })
         });
     }
 
@@ -551,6 +635,38 @@ export default function LobbyPage() {
         setGameMatchId(gameInvite.matchId);
         setGameInvite(null);
         setIsGameActive(true);
+    }
+
+    const acceptGamePigeonInvite = () => {
+        if (!gamePigeonInvite || !stompClient.current?.connected) return;
+
+        stompClient.current.publish({
+            destination: '/app/game/accept',
+            headers: { 'uuid': myUuid.current },
+            body: JSON.stringify({
+                targetPeerId: gamePigeonInvite.senderId,
+                matchId: gamePigeonInvite.matchId,
+                gameType: gamePigeonInvite.gameType,
+                role: 'initiator'  // tell server to notify initiator
+            })
+        });
+
+        setGamePigeonMatchId(gamePigeonInvite.matchId);
+        setGamePigeonRole('responder');
+        
+        const isTournament = gamePigeonInvite.gameType.startsWith('tournament:');
+        if (isTournament) {
+            setActiveGameId(null);
+            setModularQueue(gamePigeonInvite.gameType.split(':')[1].split(','));
+        } else {
+            setActiveGameId(gamePigeonInvite.gameType);
+            setModularQueue(null);
+        }
+        setGamePigeonInvite(null);
+    }
+
+    const declineGamePigeonInvite = () => {
+        setGamePigeonInvite(null);
     }
 
     const declineGameInvite = () => {
@@ -647,7 +763,9 @@ export default function LobbyPage() {
         const uuid = myUuid.current;
 
         const client = new Client({
-            brokerURL: 'wss://uknight-backend-536429702801.us-central1.run.app/ws',
+            brokerURL: process.env.NODE_ENV === 'production' 
+                ? 'wss://uknight-backend-536429702801.us-central1.run.app/ws' 
+                : 'ws://localhost:8080/ws',
             reconnectDelay: 5000,
             debug: (str) => console.log(str),
             onConnect: () => {
@@ -835,15 +953,17 @@ export default function LobbyPage() {
                         <div className="p-4 border-b border-white/10 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <h3 className="text-white font-medium">Chat</h3>
-                                {currentPeerId && !isGameActive && (
-                                    <Button
-                                        size="sm"
-                                        onClick={sendGameInvite}
-                                        className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 text-xs"
-                                    >
-                                        Play
-                                    </Button>
-                                )}
+                                <Button
+                                    size="sm"
+                                    onClick={() => setIsGamePickerOpen(true)}
+                                    className="relative bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 h-8 text-xs gap-1.5 px-3"
+                                >
+                                    <Gamepad2 className="h-3.5 w-3.5" />
+                                    Play
+                                    {(activeGameId || (modularQueue && modularQueue.length > 0)) && (
+                                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                                    )}
+                                </Button>
                             </div>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10" onClick={() => setIsChatOpen(false)}>
                                 <X className="h-4 w-4" />
@@ -859,12 +979,36 @@ export default function LobbyPage() {
                             ) : (
                                 chatMessages.map((msg) => (
                                     <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm backdrop-blur-md ${msg.sender === 'me'
-                                            ? 'bg-white/20 text-white border border-white/20 rounded-tr-sm'
-                                            : 'bg-white/10 text-white border border-white/10 rounded-tl-sm'
+                                        {msg.gameResult ? (
+                                            <div className={`max-w-[90%] rounded-2xl overflow-hidden border px-4 py-3 backdrop-blur-md ${
+                                                msg.gameResult.winner === 'You' ? 'border-emerald-500/30 bg-emerald-500/10' :
+                                                msg.gameResult.winner === 'Draw' ? 'border-amber-500/30 bg-amber-500/10' :
+                                                'border-rose-500/30 bg-rose-500/10'
                                             }`}>
-                                            {msg.text}
-                                        </div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-base">{msg.gameResult.emoji}</span>
+                                                    <span className="text-xs font-bold text-white/60">{msg.gameResult.gameName}</span>
+                                                </div>
+                                                <p className={`text-sm font-black mb-1 ${
+                                                    msg.gameResult.winner === 'You' ? 'text-emerald-400' :
+                                                    msg.gameResult.winner === 'Draw' ? 'text-amber-400' : 'text-rose-400'
+                                                }`}>
+                                                    {msg.gameResult.winner === 'You' ? '🎉 You won!' : msg.gameResult.winner === 'Draw' ? '🤝 Draw!' : 'Stranger won!'}
+                                                </p>
+                                                <div className="flex gap-3 text-[10px] text-white/40">
+                                                    <span>You: {msg.gameResult.yourScore}</span>
+                                                    <span>•</span>
+                                                    <span>Stranger: {msg.gameResult.strangerScore}</span>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm backdrop-blur-md ${msg.sender === 'me'
+                                                ? 'bg-white/20 text-white border border-white/20 rounded-tr-sm'
+                                                : 'bg-white/10 text-white border border-white/10 rounded-tl-sm'
+                                                }`}>
+                                                {msg.text}
+                                            </div>
+                                        )}
                                     </div>
                                 ))
                             )}
@@ -928,6 +1072,83 @@ export default function LobbyPage() {
                     onClose={() => {
                         setIsGameActive(false);
                         setGameMatchId(null);
+                    }}
+                />
+            )}
+
+            {/* Game Pigeon Incoming Invite Banner */}
+            {gamePigeonInvite && (
+                <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 border border-amber-500/40 rounded-2xl px-5 py-4 shadow-2xl shadow-amber-500/20 flex items-center gap-4 backdrop-blur-xl min-w-[280px]">
+                    <span className="text-2xl">{
+                        gamePigeonInvite.gameType.startsWith('tournament:') 
+                            ? '🏆' 
+                            : GAMES.find(g => g.id === gamePigeonInvite.gameType)?.emoji ?? '🎮'
+                    }</span>
+                    <div className="flex-1">
+                        <p className="text-sm font-bold text-white">Game Challenge!</p>
+                        <p className="text-[11px] text-white/50">{
+                            gamePigeonInvite.gameType.startsWith('tournament:') 
+                                ? `Tournament (${gamePigeonInvite.gameType.split(':')[1].split(',').length} games)`
+                                : GAMES.find(g => g.id === gamePigeonInvite.gameType)?.name ?? gamePigeonInvite.gameType
+                        }</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={acceptGamePigeonInvite} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-colors">Accept</button>
+                        <button onClick={declineGamePigeonInvite} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white/70 text-xs font-bold rounded-xl transition-colors">Decline</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Game Pigeon Picker */}
+            <GamePickerModal
+                isOpen={isGamePickerOpen}
+                onClose={() => setIsGamePickerOpen(false)}
+                onStartGame={(gameId) => {
+                    // If connected to a peer, send a real invite; otherwise local demo
+                    if (currentPeerId && stompClient.current?.connected) {
+                        sendGamePigeonInvite(gameId)
+                    } else {
+                        setModularQueue(null)
+                        setActiveGameId(gameId)
+                    }
+                }}
+                onStartModular={(gameIds) => {
+                    // If connected to a peer, send a real invite; otherwise local demo
+                    if (currentPeerId && stompClient.current?.connected) {
+                        sendGamePigeonInvite(gameIds)
+                    } else {
+                        setActiveGameId(null)
+                        setModularQueue(gameIds)
+                    }
+                }}
+            />
+
+            {/* Game Pigeon Overlay */}
+            {(activeGameId || (modularQueue && modularQueue.length > 0)) && (
+                <GameOverlay
+                    gameId={activeGameId}
+                    modularQueue={modularQueue}
+                    myRole={gamePigeonRole ?? undefined}
+                    sendMove={gamePigeonMatchId ? sendGamePigeonMove : undefined}
+                    lastOpponentMove={gamePigeonLastMove}
+                    onGameResult={(result: GameResult) => {
+                        setChatMessages(prev => [...prev, {
+                            id: crypto.randomUUID(),
+                            sender: 'me',
+                            text: `${result.emoji} ${result.gameName}`,
+                            gameResult: result,
+                        }])
+                        setIsChatOpen(true)
+                        setGamePigeonMatchId(null)
+                        setGamePigeonRole(null)
+                        setGamePigeonLastMove(null)
+                    }}
+                    onClose={() => {
+                        setActiveGameId(null)
+                        setModularQueue(null)
+                        setGamePigeonMatchId(null)
+                        setGamePigeonRole(null)
+                        setGamePigeonLastMove(null)
                     }}
                 />
             )}

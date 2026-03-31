@@ -3,8 +3,8 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ArrowRight, Mic, PhoneOff, Send, Video, Flag } from "lucide-react"
-import { useState, useEffect } from "react"
+import { ArrowRight, Mic, PhoneOff, Send, Video, Flag, Gamepad2 } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import {
@@ -24,31 +24,66 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { GamePickerModal } from "@/components/game-pigeon/GamePickerModal"
+import { GameOverlay } from "@/components/game-pigeon/GameOverlay"
+import type { GameResult } from "@/components/game-pigeon/types"
 
-function getInitialMessages() {
+type Message = {
+    id: number
+    sender: string
+    text: string
+    timestamp: string
+    type?: "game-result"
+    gameResult?: GameResult
+}
+
+function getInitialMessages(): Message[] {
     return [
         { id: 1, sender: "Stranger", text: "Hey! What's up?", timestamp: new Date(Date.now() - 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
         { id: 2, sender: "You", text: "Not much, just testing this new app. It looks clean!", timestamp: new Date(Date.now() - 30000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
     ]
 }
 
+function GameResultBubble({ result }: { result: GameResult }) {
+    const isWin = result.winner === "You"
+    const isDraw = result.winner === "Draw"
+    return (
+        <div className={`rounded-2xl overflow-hidden border ${isWin ? "border-emerald-500/30 bg-emerald-500/10" : isDraw ? "border-amber-500/30 bg-amber-500/10" : "border-rose-500/30 bg-rose-500/10"} px-4 py-3 max-w-[85%]`}>
+            <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">{result.emoji}</span>
+                <span className="text-xs font-bold text-white/60">{result.gameName}</span>
+            </div>
+            <p className={`text-sm font-black mb-1 ${isWin ? "text-emerald-400" : isDraw ? "text-amber-400" : "text-rose-400"}`}>
+                {isWin ? "🎉 You won!" : isDraw ? "🤝 Draw!" : "Stranger won!"}
+            </p>
+            <div className="flex gap-3 text-[10px] text-white/40">
+                <span>You: {result.yourScore}</span>
+                <span>•</span>
+                <span>Stranger: {result.strangerScore}</span>
+            </div>
+        </div>
+    )
+}
+
 export default function RoomPage() {
-    const [messages, setMessages] = useState(getInitialMessages)
+    const [messages, setMessages] = useState<Message[]>(getInitialMessages)
     const [inputText, setInputText] = useState("")
     const [isTyping, setIsTyping] = useState(false)
     const [isReportOpen, setIsReportOpen] = useState(false)
     const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed" | "reconnecting">("connected")
+    const [isGamePickerOpen, setIsGamePickerOpen] = useState(false)
+    const [activeGameId, setActiveGameId] = useState<string | null>(null)
+    const [modularQueue, setModularQueue] = useState<string[] | null>(null)
+    const scrollRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         const timer = setTimeout(() => {
             setConnectionState("reconnecting")
             setTimeout(() => setConnectionState("connected"), 3000)
         }, 15000)
-
         return () => clearTimeout(timer)
     }, [])
 
-    // Simulate stranger typing
     useEffect(() => {
         const interval = setInterval(() => {
             if (Math.random() > 0.7 && connectionState === "connected") {
@@ -58,6 +93,13 @@ export default function RoomPage() {
         }, 10000)
         return () => clearInterval(interval)
     }, [connectionState])
+
+    // Auto-scroll to bottom when messages arrive
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        }
+    }, [messages, isTyping])
 
     const sendMessage = () => {
         if (!inputText.trim()) return
@@ -71,8 +113,35 @@ export default function RoomPage() {
         toast.success("User reported. Thank you for keeping uKnight safe.")
     }
 
+    const handleStartGame = (gameId: string) => {
+        setModularQueue(null)
+        setActiveGameId(gameId)
+    }
+
+    const handleStartModular = (gameIds: string[]) => {
+        setActiveGameId(null)
+        setModularQueue(gameIds)
+    }
+
+    const handleGameResult = (result: GameResult) => {
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        const msg: Message = {
+            id: Date.now(),
+            sender: "You",
+            text: `${result.emoji} ${result.gameName}`,
+            timestamp,
+            type: "game-result",
+            gameResult: result,
+        }
+        setMessages((prev) => [...prev, msg])
+        const winMsg = result.winner === "You" ? "You won! 🎉" : result.winner === "Stranger" ? "Stranger won!" : "Draw! 🤝"
+        toast.success(`Game over — ${winMsg}`)
+    }
+
+    const isGameActive = !!activeGameId || (!!modularQueue && modularQueue.length > 0)
+
     return (
-        <div className="flex h-[calc(100vh-3.5rem)] flex-col md:flex-row">
+        <div className="flex h-[calc(100vh-3.5rem)] flex-col md:flex-row relative">
             {/* Video Section */}
             <div className="relative flex flex-1 flex-col bg-black/90 p-4">
                 <div className="relative flex-1 overflow-hidden rounded-xl bg-gray-900 ring-1 ring-white/10">
@@ -131,66 +200,85 @@ export default function RoomPage() {
             </div>
 
             {/* Chat Section */}
-            <div className="flex h-1/2 w-full flex-col border-l bg-background md:h-full md:w-96">
-                <div className="flex items-center justify-between border-b p-4">
+            <div className="flex h-1/2 w-full flex-col border-l bg-background md:h-full md:w-96 relative">
+                <div className="flex items-center justify-between border-b p-4 flex-shrink-0">
                     <div className="flex items-center gap-2">
                         <div className={`h-2 w-2 rounded-full ${connectionState === "connected" ? "bg-green-500" : "bg-yellow-500 animate-pulse"}`} />
                         <span className="font-semibold">Chat with Stranger</span>
                     </div>
 
-                    <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
-                        <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="Report User">
-                                <Flag className="h-4 w-4 text-muted-foreground hover:text-red-500" />
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Report User</DialogTitle>
-                                <DialogDescription>
-                                    Please select a reason for reporting this user. Calls are recorded for safety.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="reason">Reason</Label>
-                                    <Select>
-                                        <SelectTrigger id="reason">
-                                            <SelectValue placeholder="Select a reason" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="harassment">Harassment</SelectItem>
-                                            <SelectItem value="nudity">Nudity / Inappropriate Content</SelectItem>
-                                            <SelectItem value="spam">Spam</SelectItem>
-                                            <SelectItem value="other">Other</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                    <div className="flex items-center gap-1">
+                        {/* Game Pigeon Button */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setIsGamePickerOpen(true)}
+                            title="Play a game"
+                            className="relative"
+                        >
+                            <Gamepad2 className={`h-4 w-4 ${isGameActive ? "text-violet-400" : "text-muted-foreground hover:text-foreground"}`} />
+                            {isGameActive && (
+                                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                            )}
+                        </Button>
+
+                        <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="ghost" size="icon" title="Report User">
+                                    <Flag className="h-4 w-4 text-muted-foreground hover:text-red-500" />
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Report User</DialogTitle>
+                                    <DialogDescription>
+                                        Please select a reason for reporting this user. Calls are recorded for safety.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="reason">Reason</Label>
+                                        <Select>
+                                            <SelectTrigger id="reason">
+                                                <SelectValue placeholder="Select a reason" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="harassment">Harassment</SelectItem>
+                                                <SelectItem value="nudity">Nudity / Inappropriate Content</SelectItem>
+                                                <SelectItem value="spam">Spam</SelectItem>
+                                                <SelectItem value="other">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
-                            </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setIsReportOpen(false)}>Cancel</Button>
-                                <Button variant="destructive" onClick={handleReport}>Submit Report</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsReportOpen(false)}>Cancel</Button>
+                                    <Button variant="destructive" onClick={handleReport}>Submit Report</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
                 </div>
 
-                <ScrollArea className="flex-1 p-4">
-                    <div className="space-y-4">
+                <ScrollArea className="flex-1" ref={scrollRef as React.Ref<HTMLDivElement>}>
+                    <div className="space-y-4 p-4">
                         {messages.map((msg) => (
                             <div
                                 key={msg.id}
-                                className={`flex flex-col ${msg.sender === "You" ? "items-end" : "items-start"
-                                    }`}
+                                className={`flex flex-col ${msg.sender === "You" ? "items-end" : "items-start"}`}
                             >
-                                <div
-                                    className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${msg.sender === "You"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "bg-muted text-foreground"
-                                        }`}
-                                >
-                                    {msg.text}
-                                </div>
+                                {msg.type === "game-result" && msg.gameResult ? (
+                                    <GameResultBubble result={msg.gameResult} />
+                                ) : (
+                                    <div
+                                        className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${msg.sender === "You"
+                                            ? "bg-primary text-primary-foreground"
+                                            : "bg-muted text-foreground"
+                                            }`}
+                                    >
+                                        {msg.text}
+                                    </div>
+                                )}
                                 <span className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
                                     {msg.sender} • {msg.timestamp}
                                 </span>
@@ -209,7 +297,7 @@ export default function RoomPage() {
                     </div>
                 </ScrollArea>
 
-                <div className="border-t p-4">
+                <div className="border-t p-4 flex-shrink-0">
                     <form
                         onSubmit={(e: React.FormEvent) => {
                             e.preventDefault()
@@ -233,6 +321,27 @@ export default function RoomPage() {
                         </Button>
                     </div>
                 </div>
+
+                {/* Game Picker Modal */}
+                <GamePickerModal
+                    isOpen={isGamePickerOpen}
+                    onClose={() => setIsGamePickerOpen(false)}
+                    onStartGame={handleStartGame}
+                    onStartModular={handleStartModular}
+                />
+
+                {/* Game Overlay */}
+                {isGameActive && (
+                    <GameOverlay
+                        gameId={activeGameId}
+                        modularQueue={modularQueue}
+                        onGameResult={handleGameResult}
+                        onClose={() => {
+                            setActiveGameId(null)
+                            setModularQueue(null)
+                        }}
+                    />
+                )}
             </div>
         </div>
     )

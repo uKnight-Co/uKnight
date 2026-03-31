@@ -178,20 +178,29 @@ public class LobbyController {
 
         String targetPeerId = acceptData.get("targetPeerId");
         String matchId = acceptData.get("matchId");
+        String gameType = acceptData.getOrDefault("gameType", "");
 
-        log.info("Game accept from {} to {} for match: {}", senderId, targetPeerId, matchId);
+        log.info("Game accept from {} to {} for match: {}, gameType: {}", senderId, targetPeerId, matchId, gameType);
 
         if (targetPeerId != null && matchId != null) {
             // Create the game in the service
             gameService.createGame(matchId, targetPeerId, senderId);
 
-            // Notify both players that game started
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("type", "GAME_START");
-            payload.put("matchId", matchId);
+            // Notify the RESPONDER (the one who accepted)
+            Map<String, Object> responderPayload = new HashMap<>();
+            responderPayload.put("type", "GAME_START");
+            responderPayload.put("matchId", matchId);
+            responderPayload.put("gameType", gameType);
+            responderPayload.put("role", "responder");
+            messagingTemplate.convertAndSend("/topic/game/" + senderId, (Object) responderPayload);
 
-            messagingTemplate.convertAndSend("/topic/game/" + targetPeerId, (Object) payload);
-            messagingTemplate.convertAndSend("/topic/game/" + senderId, (Object) payload);
+            // Notify the INITIATOR (the one who sent the invite, targetPeerId)
+            Map<String, Object> initiatorPayload = new HashMap<>();
+            initiatorPayload.put("type", "GAME_START");
+            initiatorPayload.put("matchId", matchId);
+            initiatorPayload.put("gameType", gameType);
+            initiatorPayload.put("role", "initiator");
+            messagingTemplate.convertAndSend("/topic/game/" + targetPeerId, (Object) initiatorPayload);
         }
     }
 
@@ -205,13 +214,38 @@ public class LobbyController {
         }
 
         String matchId = (String) moveData.get("matchId");
-        Double dx = ((Number) moveData.get("dx")).doubleValue();
-        Double dy = ((Number) moveData.get("dy")).doubleValue();
+        String moveType = (String) moveData.get("type");
 
-        log.info("Game move from {} for match {}: dx={}, dy={}", senderId, matchId, dx, dy);
+        log.info("Game move from {} for match {}, type={}", senderId, matchId, moveType);
+
+        // Game Pigeon mini-game move (arbitrary action payload)
+        if ("GAME_MOVE".equals(moveType)) {
+            if (matchId != null) {
+                var gameOpt = gameService.getGame(matchId);
+                if (gameOpt.isPresent()) {
+                    GameService.GameState game = gameOpt.get();
+                    String opponentId = senderId.equals(game.getPlayer1Id()) ? game.getPlayer2Id() : game.getPlayer1Id();
+
+                    Map<String, Object> relay = new HashMap<>();
+                    relay.put("type", "GAME_MOVE");
+                    relay.put("matchId", matchId);
+                    relay.put("senderId", senderId);
+                    relay.put("action", moveData.get("action"));
+
+                    messagingTemplate.convertAndSend("/topic/game/" + opponentId, (Object) relay);
+                }
+            }
+            return;
+        }
+
+        // Legacy air-hockey puck move
+        Object dxObj = moveData.get("dx");
+        Object dyObj = moveData.get("dy");
+        if (dxObj == null || dyObj == null) return;
+        Double dx = ((Number) dxObj).doubleValue();
+        Double dy = ((Number) dyObj).doubleValue();
 
         if (matchId != null) {
-            // Processing logic
             var gameOpt = gameService.getGame(matchId);
             if (gameOpt.isPresent()) {
                 GameService.GameState game = gameOpt.get();
@@ -225,11 +259,9 @@ public class LobbyController {
                 messagingTemplate.convertAndSend("/topic/game/" + opponentId, (Object) moveBroadcast);
             }
 
-            // Process the shot through the game service (updates state)
             GameService.GameState gameState = gameService.processShot(matchId, senderId, new GameService.Shot(dx, dy));
 
             if (gameState != null) {
-                // Broadcast final game state to both players (for reconciliation)
                 Map<String, Object> statePayload = new HashMap<>();
                 statePayload.put("type", "GAME_STATE_SYNC");
                 statePayload.put("matchId", matchId);
