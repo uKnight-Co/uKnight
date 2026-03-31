@@ -11,7 +11,6 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Client, IMessage, StompSubscription } from "@stomp/stompjs"
 import { Input } from "@/components/ui/input"
-import { KnockoutGame } from "@/components/knockout/KnockoutGame"
 import { GamePickerModal, GAMES } from "@/components/game-pigeon/GamePickerModal"
 import { GameOverlay } from "@/components/game-pigeon/GameOverlay"
 import type { GameResult } from "@/components/game-pigeon/types"
@@ -162,11 +161,6 @@ export default function LobbyPage() {
     const [remoteVideoOn, setRemoteVideoOn] = useState(true)
     const { videoDeviceId, audioDeviceId } = useMediaStore()
     const { user: firebaseUser } = useAuth()
-
-    // Game state
-    const [isGameActive, setIsGameActive] = useState(false)
-    const [gameMatchId, setGameMatchId] = useState<string | null>(null)
-    const [gameInvite, setGameInvite] = useState<{ senderId: string, matchId: string } | null>(null)
 
     // Game Pigeon state
     const [isGamePickerOpen, setIsGamePickerOpen] = useState(false)
@@ -484,51 +478,34 @@ export default function LobbyPage() {
                 console.log("Server confirmed invite sent to:", data.targetPeerId);
             } else if (data.type === 'GAME_INVITE') {
                 const gameType: string = data.gameType || '';
-                // Route to Knockout or Game Pigeon
-                if (gameType === 'knockout') {
-                    setGameInvite({ senderId: data.senderId, matchId: data.matchId });
-                    setChatMessages(prev => [...prev, {
-                        id: crypto.randomUUID(),
-                        sender: 'partner',
-                        text: "⚔️ Partner wants to play Knockout!"
-                    }]);
+                const isTournament = gameType.startsWith('tournament:');
+                let displayName = gameType;
+                if (isTournament) {
+                    const games = gameType.split(':')[1].split(',');
+                    displayName = `Tournament (${games.length} games)`;
                 } else {
-                    const isTournament = gameType.startsWith('tournament:');
-                    let displayName = gameType;
-                    if (isTournament) {
-                        const games = gameType.split(':')[1].split(',');
-                        displayName = `Tournament (${games.length} games)`;
-                    } else {
-                        displayName = GAMES.find(g => g.id === gameType)?.name ?? gameType;
-                    }
-
-                    // Game Pigeon invite
-                    setGamePigeonInvite({ senderId: data.senderId, matchId: data.matchId, gameType });
-                    setChatMessages(prev => [...prev, {
-                        id: crypto.randomUUID(),
-                        sender: 'partner',
-                        text: `🎮 Partner challenged you to ${displayName}! Check the invite below.`
-                    }]);
-                    setIsChatOpen(true);
+                    displayName = GAMES.find(g => g.id === gameType)?.name ?? gameType;
                 }
+
+                // Game Pigeon invite
+                setGamePigeonInvite({ senderId: data.senderId, matchId: data.matchId, gameType });
+                setChatMessages(prev => [...prev, {
+                    id: crypto.randomUUID(),
+                    sender: 'partner',
+                    text: `🎮 Partner challenged you to ${displayName}! Check the invite below.`
+                }]);
+                setIsChatOpen(true);
             } else if (data.type === 'GAME_START') {
-                const gameType: string = data.gameType || '';
-                if (gameType === 'knockout' || !gameType) {
-                    setGameMatchId(data.matchId);
-                    setIsGameActive(true);
+                // Game Pigeon start
+                setGamePigeonMatchId(data.matchId);
+                setGamePigeonRole(data.role || 'responder');
+                const isTournament = data.gameType?.startsWith('tournament:');
+                if (isTournament) {
+                    setActiveGameId(null);
+                    setModularQueue(data.gameType.split(':')[1].split(','));
                 } else {
-                    // Game Pigeon start — we are responder since GAME_START comes to the accept sender
-                    // Role is embedded in payload
-                    setGamePigeonMatchId(data.matchId);
-                    setGamePigeonRole(data.role || 'responder');
-                    const isTournament = data.gameType.startsWith('tournament:');
-                    if (isTournament) {
-                        setActiveGameId(null);
-                        setModularQueue(data.gameType.split(':')[1].split(','));
-                    } else {
-                        setActiveGameId(data.gameType);
-                        setModularQueue(null);
-                    }
+                    setActiveGameId(data.gameType);
+                    setModularQueue(null);
                 }
             } else if (data.type === 'GAME_MOVE') {
                 // Relay opponent move to the active game component
@@ -550,7 +527,7 @@ export default function LobbyPage() {
 
         // Handle slash commands
         if (message.toLowerCase() === '/knockout') {
-            sendGameInvite();
+            sendGamePigeonInvite('pigeon_knockout');
             setChatInput("");
             return;
         }
@@ -562,25 +539,6 @@ export default function LobbyPage() {
             destination: '/app/chat',
             headers: { 'uuid': myUuid.current },
             body: JSON.stringify({ targetPeerId: currentPeerId, message: message })
-        });
-    }
-
-    const sendGameInvite = () => {
-        if (!currentPeerId || !stompClient.current?.connected) {
-            console.error("Cannot send invite: ", { currentPeerId, connected: stompClient.current?.connected });
-            return;
-        }
-
-        setChatMessages(prev => [...prev, {
-            id: crypto.randomUUID(),
-            sender: 'me',
-            text: "⚔️ Knockout challenge sent! Waiting for partner to accept..."
-        }]);
-
-        stompClient.current.publish({
-            destination: '/app/game/invite',
-            headers: { 'uuid': myUuid.current },
-            body: JSON.stringify({ targetPeerId: currentPeerId, gameType: 'knockout' })
         });
     }
 
@@ -623,20 +581,6 @@ export default function LobbyPage() {
         });
     }
 
-    const acceptGameInvite = () => {
-        if (!gameInvite || !stompClient.current?.connected) return;
-
-        stompClient.current.publish({
-            destination: '/app/game/accept',
-            headers: { 'uuid': myUuid.current },
-            body: JSON.stringify({ targetPeerId: gameInvite.senderId, matchId: gameInvite.matchId })
-        });
-
-        setGameMatchId(gameInvite.matchId);
-        setGameInvite(null);
-        setIsGameActive(true);
-    }
-
     const acceptGamePigeonInvite = () => {
         if (!gamePigeonInvite || !stompClient.current?.connected) return;
 
@@ -667,10 +611,6 @@ export default function LobbyPage() {
 
     const declineGamePigeonInvite = () => {
         setGamePigeonInvite(null);
-    }
-
-    const declineGameInvite = () => {
-        setGameInvite(null);
     }
 
     const handleNext = () => {
@@ -1014,33 +954,6 @@ export default function LobbyPage() {
                             )}
                         </div>
 
-                        {gameInvite && (
-                            <div className="p-4 border-b border-white/10 bg-emerald-500/10">
-                                <div className="flex items-center justify-between">
-                                    <div className="text-sm text-white">
-                                        <span className="font-medium">Partner</span> wants to play Knockout!
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            size="sm"
-                                            onClick={acceptGameInvite}
-                                            className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                                        >
-                                            Accept
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={declineGameInvite}
-                                            className="text-white/70 hover:text-white hover:bg-white/10"
-                                        >
-                                            Decline
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         <div className="p-4 border-t border-white/10 bg-black/20">
                             <form
                                 onSubmit={(e) => { e.preventDefault(); sendChat(); }}
@@ -1061,20 +974,6 @@ export default function LobbyPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            {/* Knockout Game Overlay */}
-            {isGameActive && gameMatchId && (
-                <KnockoutGame
-                    matchId={gameMatchId}
-                    myId={myUuid.current}
-                    opponentId={currentPeerId!}
-                    stompClient={stompClient.current}
-                    onClose={() => {
-                        setIsGameActive(false);
-                        setGameMatchId(null);
-                    }}
-                />
-            )}
 
             {/* Game Pigeon Incoming Invite Banner */}
             {gamePigeonInvite && (

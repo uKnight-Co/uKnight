@@ -36,7 +36,7 @@ export const GAMES: GameDefinition[] = [
     component: WordScramble,
   },
   {
-    id: "knockout", name: "Knockout", emoji: "🥊",
+    id: "pigeon_knockout", name: "Knockout", emoji: "🥊",
     tagline: "Knock pucks off the platform!",
     rules: "Two pucks face off on a circular platform. Take turns dragging and shooting your puck to knock the opponent's off the edge! 5 rounds — most knockouts wins. Red = You, Blue = Stranger.",
     component: Knockout,

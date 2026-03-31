@@ -12,7 +12,7 @@ const PLATFORM_RADIUS = 0.45;
 const VISUAL_PLATFORM_RADIUS = 162; // 0.45 * 360
 const MAX_SHOT_POWER = 130;
 const TOTAL_ROUNDS = 5;
-const FRICTION = 0.983;
+const FRICTION = 0.98;
 
 function shadeColor(col: string, amt: number) {
   const num = parseInt(col.slice(1), 16);
@@ -63,7 +63,7 @@ function drawPuck(ctx: CanvasRenderingContext2D, puck: Puck, color: string) {
   ctx.globalAlpha = 1;
 }
 
-export function Knockout({ onGameEnd, onClose }: GameProps) {
+export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMove }: GameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pucksRef = useRef<[Puck, Puck]>([
     { x: -0.3, y: 0, radius: 0.055, vx: 0, vy: 0 },
@@ -81,6 +81,14 @@ export function Knockout({ onGameEnd, onClose }: GameProps) {
   const [renderTick, setRenderTick] = useState(0);
   const [isShootingLocked, setIsShootingLocked] = useState(false);
   const shootingLockedRef = useRef(false);
+  const lastProcessedMoveRef = useRef<string | null>(null);
+
+  // Network roles
+  const isNetworked = !!myRole;
+  const localPlayerNum = myRole === "responder" ? 2 : 1; // 1 = Red, 2 = Blue
+
+  // Only allow input if it's our turn, OR if we're playing locally (no network)
+  const isMyTurn = !isNetworked || currentPlayer === localPlayerNum;
 
   const setShootingLocked = useCallback((val: boolean) => {
     shootingLockedRef.current = val;
@@ -124,6 +132,44 @@ export function Knockout({ onGameEnd, onClose }: GameProps) {
     if (p2Off) return "p1";
     return null;
   }, []);
+
+  const handleNextRoundLogic = useCallback(() => {
+    setRound((currentRound) => {
+       const nextRoundNum = currentRound + 1;
+       if (nextRoundNum > TOTAL_ROUNDS) {
+         setPhase("done");
+         return currentRound;
+       }
+       // Reset pucks
+       pucksRef.current = [
+         { x: -0.3, y: 0, radius: 0.055, vx: 0, vy: 0 },
+         { x: 0.3, y: 0, radius: 0.055, vx: 0, vy: 0 },
+       ];
+       setShootingLocked(false);
+       
+       // Even rounds (2, 4) start with Blue (2). Odd rounds (1, 3, 5) start with Red (1).
+       setCurrentPlayer(nextRoundNum % 2 === 0 ? 2 : 1);
+       setRoundMsg(null);
+       setPhase("playing");
+       setRenderTick((t) => t + 1);
+       return nextRoundNum;
+    });
+  }, [setShootingLocked]);
+
+  const handleFinishGameLogic = useCallback(() => {
+    setScores((s) => {
+       const winner = s.p1 > s.p2 ? "You" : s.p2 > s.p1 ? "Stranger" : "Draw";
+       onGameEnd({
+         winner,
+         yourScore: `${s.p1} KOs`,
+         strangerScore: `${s.p2} KOs`,
+         gameName: "Knockout",
+         emoji: "🥊",
+       });
+       onClose();
+       return s;
+    });
+  }, [onGameEnd, onClose]);
 
   // Physics game loop
   useEffect(() => {
@@ -184,6 +230,39 @@ export function Knockout({ onGameEnd, onClose }: GameProps) {
     frameId = requestAnimationFrame(update);
     return () => cancelAnimationFrame(frameId);
   }, [isDragging, checkRoundEnd, setShootingLocked]);
+
+  // Network sync for opponent's shot
+  useEffect(() => {
+    if (isNetworked && lastOpponentMove && lastOpponentMove.type === "SHOT") {
+      const moveId = lastOpponentMove.id as string;
+      if (lastProcessedMoveRef.current !== moveId && !isMyTurn) {
+         lastProcessedMoveRef.current = moveId;
+         const dx = lastOpponentMove.dx as number;
+         const dy = lastOpponentMove.dy as number;
+         const mag = lastOpponentMove.mag as number;
+         const clamp = lastOpponentMove.clamp as number;
+         const scale = 0.0001;
+
+         // Verify the opponent's turn matches the current turn index
+         const oppIndex = currentPlayer === 1 ? 0 : 1;
+         pucksRef.current[oppIndex].vx = -(dx / mag) * clamp * scale;
+         pucksRef.current[oppIndex].vy = -(dy / mag) * clamp * scale;
+         setShootingLocked(true);
+      }
+    } else if (isNetworked && lastOpponentMove && lastOpponentMove.type === "NEXT_ROUND") {
+      const moveId = lastOpponentMove.id as string;
+      if (lastProcessedMoveRef.current !== moveId) {
+         lastProcessedMoveRef.current = moveId;
+         handleNextRoundLogic();
+      }
+    } else if (isNetworked && lastOpponentMove && lastOpponentMove.type === "FINISH_GAME") {
+      const moveId = lastOpponentMove.id as string;
+      if (lastProcessedMoveRef.current !== moveId) {
+         lastProcessedMoveRef.current = moveId;
+         handleFinishGameLogic();
+      }
+    }
+  }, [lastOpponentMove, isNetworked, isMyTurn, currentPlayer, setShootingLocked, handleNextRoundLogic, handleFinishGameLogic]);
 
   // Canvas draw
   useEffect(() => {
@@ -297,7 +376,7 @@ export function Knockout({ onGameEnd, onClose }: GameProps) {
   const myPuckIndex = currentPlayer === 1 ? 0 : 1;
 
   const startDrag = (cx: number, cy: number) => {
-    if (phase !== "playing" || shootingLockedRef.current) return;
+    if (phase !== "playing" || shootingLockedRef.current || !isMyTurn) return;
     const coords = getCoords(cx, cy);
     if (!coords) return;
     const p = pucksRef.current[myPuckIndex];
@@ -324,10 +403,15 @@ export function Knockout({ onGameEnd, onClose }: GameProps) {
     const mag = Math.hypot(dx, dy);
     if (mag > 15) {
       const clamp = Math.min(mag, MAX_SHOT_POWER);
-      const scale = 0.012;
+      const scale = 0.0001; // properly scaled physics
       pucksRef.current[myPuckIndex].vx = -(dx / mag) * clamp * scale;
       pucksRef.current[myPuckIndex].vy = -(dy / mag) * clamp * scale;
       setShootingLocked(true);
+      
+      // Broadcast over network if available
+      if (isNetworked && sendMove) {
+         sendMove({ type: "SHOT", id: crypto.randomUUID(), dx, dy, mag, clamp });
+      }
     }
   };
 
@@ -339,36 +423,18 @@ export function Knockout({ onGameEnd, onClose }: GameProps) {
   const handleTouchEnd = (e: React.TouchEvent) => { e.preventDefault(); endDrag(); };
 
   // ── Round/Game flow ────────────────────────────────────────────────────────
-  const nextRound = () => {
-    const nextRoundNum = round + 1;
-    if (nextRoundNum > TOTAL_ROUNDS) {
-      setPhase("done");
-      return;
+  const onNextRoundClick = () => {
+    handleNextRoundLogic();
+    if (isNetworked && sendMove) {
+      sendMove({ type: "NEXT_ROUND", id: crypto.randomUUID() });
     }
-    // Reset pucks
-    pucksRef.current = [
-      { x: -0.3, y: 0, radius: 0.055, vx: 0, vy: 0 },
-      { x: 0.3, y: 0, radius: 0.055, vx: 0, vy: 0 },
-    ];
-    setShootingLocked(false);
-    setRound(nextRoundNum);
-    setCurrentPlayer(1);
-    setRoundMsg(null);
-    setPhase("playing");
-    setRenderTick((t) => t + 1);
   };
 
-  const finishGame = () => {
-    const winner =
-      scores.p1 > scores.p2 ? "You" : scores.p2 > scores.p1 ? "Stranger" : "Draw";
-    onGameEnd({
-      winner,
-      yourScore: `${scores.p1} KOs`,
-      strangerScore: `${scores.p2} KOs`,
-      gameName: "Knockout",
-      emoji: "🥊",
-    });
-    onClose();
+  const onFinishGameClick = () => {
+    handleFinishGameLogic();
+    if (isNetworked && sendMove) {
+      sendMove({ type: "FINISH_GAME", id: crypto.randomUUID() });
+    }
   };
 
   return (
@@ -378,7 +444,7 @@ export function Knockout({ onGameEnd, onClose }: GameProps) {
         <div className="text-center">
           <div className="flex items-center justify-center gap-1.5 mb-1">
             <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
-            <p className="text-[10px] uppercase tracking-widest text-white/40">Red (You)</p>
+            <p className="text-[10px] uppercase tracking-widest text-white/40">Red {isNetworked && localPlayerNum === 1 ? "(You)" : !isNetworked ? "(P1)" : ""}</p>
           </div>
           <p className="text-2xl font-black text-red-400">{scores.p1}</p>
         </div>
@@ -389,7 +455,7 @@ export function Knockout({ onGameEnd, onClose }: GameProps) {
         <div className="text-center">
           <div className="flex items-center justify-center gap-1.5 mb-1">
             <span className="w-3 h-3 rounded-full bg-blue-500 inline-block" />
-            <p className="text-[10px] uppercase tracking-widest text-white/40">Blue (Stranger)</p>
+            <p className="text-[10px] uppercase tracking-widest text-white/40">Blue {isNetworked && localPlayerNum === 2 ? "(You)" : !isNetworked ? "(P2)" : ""}</p>
           </div>
           <p className="text-2xl font-black text-blue-400">{scores.p2}</p>
         </div>
@@ -456,14 +522,19 @@ export function Knockout({ onGameEnd, onClose }: GameProps) {
             </div>
             {round < TOTAL_ROUNDS ? (
               <Button
-                onClick={nextRound}
+                onClick={onNextRoundClick}
                 className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl"
               >
                 Next Round →
               </Button>
             ) : (
               <Button
-                onClick={() => setPhase("done")}
+                onClick={() => {
+                  setPhase("done");
+                  if (isNetworked && sendMove) {
+                    sendMove({ type: "NEXT_ROUND", id: crypto.randomUUID() });
+                  }
+                }}
                 className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl"
               >
                 See Final Result!
@@ -492,7 +563,7 @@ export function Knockout({ onGameEnd, onClose }: GameProps) {
               </p>
             </div>
             <Button
-              onClick={finishGame}
+              onClick={onFinishGameClick}
               className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl"
             >
               Finish Game
