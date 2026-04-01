@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select"
 import { motion } from "framer-motion"
 import { Save, Moon, Sun, Monitor, LogOut } from "lucide-react"
+import InterestsPicker from "@/components/interests-picker"
 import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
 import { toast } from "sonner"
@@ -23,6 +24,7 @@ interface UserSettings {
     universityName: string
     schoolYear: string
     showUsername: boolean
+    interests: string[]
 }
 
 export default function SettingsPage() {
@@ -33,6 +35,7 @@ export default function SettingsPage() {
         universityName: "",
         schoolYear: "",
         showUsername: true,
+        interests: [],
     })
     const [saving, setSaving] = useState(false)
     const [loaded, setLoaded] = useState(false)
@@ -51,6 +54,7 @@ export default function SettingsPage() {
                         universityName: data.universityName || "",
                         schoolYear: data.schoolYear || "",
                         showUsername: data.showUsername ?? true,
+                        interests: data.interests || [],
                     })
                 } else {
                     setSettings((prev) => ({
@@ -86,6 +90,7 @@ export default function SettingsPage() {
                     universityName: settings.universityName,
                     schoolYear: settings.schoolYear,
                     showUsername: settings.showUsername,
+                    interests: settings.interests,
                 }),
             })
 
@@ -228,6 +233,11 @@ export default function SettingsPage() {
                         </div>
                     </CardContent>
                 </Card>
+
+                <InterestsPicker
+                    selected={settings.interests}
+                    onChange={(interests) => setSettings((s) => ({ ...s, interests }))}
+                />
 
                 <div className="flex gap-3">
                     <Button onClick={handleSave} disabled={saving} className="flex-1">
