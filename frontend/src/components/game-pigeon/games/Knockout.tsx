@@ -90,7 +90,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
   // Only allow input if it's our turn, OR if we're playing locally (no network)
   const isMyTurn = !isNetworked || currentPlayer === localPlayerNum;
 
-  const setShootingLocked = useCallback((val: boolean) => {
+  const updateShootingLock = useCallback((val: boolean) => {
     shootingLockedRef.current = val;
     setIsShootingLocked(val);
   }, []);
@@ -145,7 +145,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
          { x: -0.3, y: 0, radius: 0.055, vx: 0, vy: 0 },
          { x: 0.3, y: 0, radius: 0.055, vx: 0, vy: 0 },
        ];
-       setShootingLocked(false);
+       updateShootingLock(false);
        
        // Even rounds (2, 4) start with Blue (2). Odd rounds (1, 3, 5) start with Red (1).
        setCurrentPlayer(nextRoundNum % 2 === 0 ? 2 : 1);
@@ -154,7 +154,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
        setRenderTick((t) => t + 1);
        return nextRoundNum;
     });
-  }, [setShootingLocked]);
+  }, [updateShootingLock]);
 
   const handleFinishGameLogic = useCallback(() => {
     setScores((s) => {
@@ -202,7 +202,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
 
       // Once everything settles after a shot, check for round end
       if (!moving && shootingLockedRef.current) {
-        setShootingLocked(false);
+        updateShootingLock(false);
         settled = true;
         const winner = checkRoundEnd();
         if (winner) {
@@ -229,7 +229,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
 
     frameId = requestAnimationFrame(update);
     return () => cancelAnimationFrame(frameId);
-  }, [isDragging, checkRoundEnd, setShootingLocked]);
+  }, [isDragging, checkRoundEnd, updateShootingLock]);
 
   // Network sync for opponent's shot
   useEffect(() => {
@@ -247,22 +247,22 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
          const oppIndex = currentPlayer === 1 ? 0 : 1;
          pucksRef.current[oppIndex].vx = -(dx / mag) * clamp * scale;
          pucksRef.current[oppIndex].vy = -(dy / mag) * clamp * scale;
-         setShootingLocked(true);
+         shootingLockedRef.current = true;
       }
     } else if (isNetworked && lastOpponentMove && lastOpponentMove.type === "NEXT_ROUND") {
       const moveId = lastOpponentMove.id as string;
       if (lastProcessedMoveRef.current !== moveId) {
          lastProcessedMoveRef.current = moveId;
-         handleNextRoundLogic();
+         requestAnimationFrame(() => handleNextRoundLogic());
       }
     } else if (isNetworked && lastOpponentMove && lastOpponentMove.type === "FINISH_GAME") {
       const moveId = lastOpponentMove.id as string;
       if (lastProcessedMoveRef.current !== moveId) {
          lastProcessedMoveRef.current = moveId;
-         handleFinishGameLogic();
+         requestAnimationFrame(() => handleFinishGameLogic());
       }
     }
-  }, [lastOpponentMove, isNetworked, isMyTurn, currentPlayer, setShootingLocked, handleNextRoundLogic, handleFinishGameLogic]);
+  }, [lastOpponentMove, isNetworked, isMyTurn, currentPlayer, handleNextRoundLogic, handleFinishGameLogic]);
 
   // Canvas draw
   useEffect(() => {
@@ -406,7 +406,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
       const scale = 0.0001; // properly scaled physics
       pucksRef.current[myPuckIndex].vx = -(dx / mag) * clamp * scale;
       pucksRef.current[myPuckIndex].vy = -(dy / mag) * clamp * scale;
-      setShootingLocked(true);
+      updateShootingLock(true);
       
       // Broadcast over network if available
       if (isNetworked && sendMove) {

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,6 @@ export function Snake({ onGameEnd, myRole, sendMove, lastOpponentMove }: GamePro
 
   const [phase, setPhase] = useState<"intro" | "playing" | "waiting" | "done">("intro");
   const [myScore, setMyScore] = useState(0);
-  const [opponentScore, setOpponentScore] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
 
   const snakeRef = useRef<Point[]>([{ x: 120, y: 120 }]);
@@ -148,21 +147,14 @@ export function Snake({ onGameEnd, myRole, sendMove, lastOpponentMove }: GamePro
     return () => { window.removeEventListener("keydown", handleKey); stopAll(); };
   }, [stopAll]);
 
-  // Incoming opponent score
-  useEffect(() => {
-    if (!isNetworked || !lastOpponentMove) return;
+  const opponentScore = useMemo(() => {
+    if (!isNetworked || !lastOpponentMove) return null;
     const m = lastOpponentMove as { type?: string; score?: number };
-    if (m.type === "FINISHED" && typeof m.score === "number") {
-      setOpponentScore(m.score);
-    }
-  }, [lastOpponentMove, isNetworked]);
+    if (m.type === "FINISHED" && typeof m.score === "number") return m.score;
+    return null;
+  }, [isNetworked, lastOpponentMove]);
 
-  // Both done?
-  useEffect(() => {
-    if (phase === "waiting" && (!isNetworked || opponentScore !== null)) {
-      setPhase("done");
-    }
-  }, [phase, opponentScore, isNetworked]);
+  const effectivePhase = (phase === "waiting" && (!isNetworked || opponentScore !== null)) ? "done" : phase;
 
   const finishGame = () => {
     const them = opponentScore ?? 0;
@@ -207,7 +199,7 @@ export function Snake({ onGameEnd, myRole, sendMove, lastOpponentMove }: GamePro
         </div>
         <div className="text-center">
           <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Snake</p>
-          {phase === "playing" && (
+          {effectivePhase === "playing" && (
             <p className={`text-lg font-black ${timeLeft <= 10 ? "text-red-400 animate-pulse" : "text-white"}`}>{timeLeft}s</p>
           )}
         </div>
@@ -218,7 +210,7 @@ export function Snake({ onGameEnd, myRole, sendMove, lastOpponentMove }: GamePro
       </div>
 
       <AnimatePresence mode="wait">
-        {phase === "intro" && (
+        {effectivePhase === "intro" && (
           <motion.div key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-3">
             <p className="text-center text-sm text-white/60">
               {GAME_DURATION}s sprint — collect as much food as you can! Highest score wins.
@@ -229,20 +221,20 @@ export function Snake({ onGameEnd, myRole, sendMove, lastOpponentMove }: GamePro
           </motion.div>
         )}
 
-        {phase === "playing" && (
+        {effectivePhase === "playing" && (
           <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-sm font-bold py-1.5 rounded-xl text-amber-400 bg-amber-500/10 border border-amber-500/20">
             🐍 GO! Arrow keys or swipe to move.
           </motion.div>
         )}
 
-        {phase === "waiting" && (
+        {effectivePhase === "waiting" && (
           <motion.div key="wait" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-2 py-4">
             <p className="text-sm font-bold text-amber-400">✅ You scored {myScore}!</p>
             <p className="text-sm text-white/50 animate-pulse">Waiting for opponent to finish...</p>
           </motion.div>
         )}
 
-        {phase === "done" && (
+        {effectivePhase === "done" && (
           <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col gap-4">
             <div className="bg-white/5 rounded-2xl p-5 text-center border border-white/10">
               <p className="text-3xl font-black text-white mb-3">
@@ -261,7 +253,7 @@ export function Snake({ onGameEnd, myRole, sendMove, lastOpponentMove }: GamePro
       </AnimatePresence>
 
       {/* Canvas — shown while playing */}
-      {phase === "playing" && (
+      {effectivePhase === "playing" && (
         <div className="flex justify-center">
           <canvas
             ref={canvasRef}
@@ -276,7 +268,7 @@ export function Snake({ onGameEnd, myRole, sendMove, lastOpponentMove }: GamePro
       )}
 
       {/* Mobile D-pad */}
-      {phase === "playing" && (
+      {effectivePhase === "playing" && (
         <div className="flex flex-col items-center gap-1 md:hidden">
           <button
             onClick={() => { const o = { UP: "DOWN", DOWN: "UP", LEFT: "RIGHT", RIGHT: "LEFT" } as const; if (o[dirRef.current] !== "UP") dirRef.current = "UP"; }}

@@ -24,7 +24,7 @@ function checkWinner(board: Board): { winner: Cell; line: number[] | null } {
   return { winner: null, line: null };
 }
 
-export function TicTacToe({ onGameEnd, onClose, myRole, sendMove, lastOpponentMove }: GameProps) {
+export function TicTacToe({ onGameEnd, myRole, sendMove, lastOpponentMove }: GameProps) {
   const isNetworked = !!myRole && !!sendMove;
   const mySymbol: "X" | "O" = myRole === "initiator" ? "X" : "O";
   const opponentSymbol: "X" | "O" = mySymbol === "X" ? "O" : "X";
