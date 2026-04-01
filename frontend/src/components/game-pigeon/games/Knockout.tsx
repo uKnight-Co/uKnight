@@ -79,6 +79,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
   const [roundMsg, setRoundMsg] = useState<string | null>(null);
   const [phase, setPhase] = useState<"playing" | "roundOver" | "done">("playing");
   const [renderTick, setRenderTick] = useState(0);
+  const [isShootingLocked, setIsShootingLocked] = useState(false);
   const shootingLockedRef = useRef(false);
   const lastProcessedMoveRef = useRef<string | null>(null);
 
@@ -91,7 +92,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
 
   const updateShootingLock = useCallback((val: boolean) => {
     shootingLockedRef.current = val;
-    setRenderTick((t) => t + 1);
+    setIsShootingLocked(val);
   }, []);
 
   // Resolve elastic collision between two pucks
@@ -474,7 +475,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           className={`rounded-2xl ring-1 ring-white/10 w-full max-w-[360px] ${
-            phase === "playing" && !shootingLockedRef.current
+            phase === "playing" && !isShootingLocked
               ? "cursor-crosshair"
               : "cursor-wait"
           }`}
@@ -482,7 +483,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
         />
 
         {/* Turn badge */}
-        {phase === "playing" && !shootingLockedRef.current && (
+        {phase === "playing" && !isShootingLocked && (
           <div
             className={`absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full border flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm ${
               currentPlayer === 1
@@ -496,7 +497,7 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
         )}
 
         {/* Waiting for physics to settle */}
-        {phase === "playing" && shootingLockedRef.current && (
+        {phase === "playing" && isShootingLocked && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/50 backdrop-blur-sm rounded-full border border-white/10 flex items-center gap-1.5">
             <RefreshCw className="w-3 h-3 text-white/50 animate-spin" />
             <span className="text-[10px] text-white/50 font-bold uppercase tracking-widest">Settling…</span>
