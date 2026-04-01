@@ -253,13 +253,13 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
       const moveId = lastOpponentMove.id as string;
       if (lastProcessedMoveRef.current !== moveId) {
          lastProcessedMoveRef.current = moveId;
-         handleNextRoundLogic();
+         requestAnimationFrame(() => handleNextRoundLogic());
       }
     } else if (isNetworked && lastOpponentMove && lastOpponentMove.type === "FINISH_GAME") {
       const moveId = lastOpponentMove.id as string;
       if (lastProcessedMoveRef.current !== moveId) {
          lastProcessedMoveRef.current = moveId;
-         handleFinishGameLogic();
+         requestAnimationFrame(() => handleFinishGameLogic());
       }
     }
   }, [lastOpponentMove, isNetworked, isMyTurn, currentPlayer, handleNextRoundLogic, handleFinishGameLogic]);
