@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Gamepad2, Plus, Trash2, ChevronRight, HelpCircle } from "lucide-react";
+import { X, Gamepad2, Plus, ChevronRight, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { GameDefinition } from "./types";
 
@@ -196,7 +196,7 @@ export function GamePickerModal({ isOpen, onClose, onStartGame, onStartModular }
                   </motion.div>
                 ) : (
                   <motion.div key="modular" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="flex flex-col gap-3 pt-2">
-                    <p className="text-xs text-white/50 text-center">Select games to add to your tournament playlist. They'll play in order!</p>
+                    <p className="text-xs text-white/50 text-center">Select games to add to your tournament playlist. They&apos;ll play in order!</p>
 
                     {/* Queue */}
                     {queue.length > 0 && (

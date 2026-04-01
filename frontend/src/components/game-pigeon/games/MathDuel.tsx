@@ -58,7 +58,6 @@ export function MathDuel({ onGameEnd, myRole, sendMove, lastOpponentMove }: Game
     }
     setIdx(next);
     startTimer(next);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopTimer, sendMove, startTimer]);
 
   const startGame = useCallback((probs: Problem[]) => {

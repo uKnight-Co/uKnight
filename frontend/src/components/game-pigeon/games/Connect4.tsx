@@ -52,7 +52,7 @@ function isBoardFull(board: Board): boolean {
   return board[0].every((c) => c !== null);
 }
 
-export function Connect4({ onGameEnd, onClose, myRole, sendMove, lastOpponentMove }: GameProps) {
+export function Connect4({ onGameEnd, myRole, sendMove, lastOpponentMove }: GameProps) {
   const isNetworked = !!myRole && !!sendMove;
 
   // initiator = Player 1 (Red), responder = Player 2 (Yellow)

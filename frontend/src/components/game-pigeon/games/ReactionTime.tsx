@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ export function ReactionTime({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
   const [roundPhase, setRoundPhase] = useState<"waiting" | "green" | "tapped">("waiting");
   const [round, setRound] = useState(1);
   const [myTimes, setMyTimes] = useState<number[]>([]);
-  const [theirTimes, setTheirTimes] = useState<number[] | null>(null);
   const [tooFast, setTooFast] = useState(false);
   const [lastTime, setLastTime] = useState<number | null>(null);
 
@@ -43,17 +42,14 @@ export function ReactionTime({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
     setPhase("waiting");
   }, [isNetworked, sendMove]);
 
-  useEffect(() => {
-    if (!isNetworked || !lastOpponentMove) return;
+  const theirTimes = useMemo(() => {
+    if (!isNetworked || !lastOpponentMove) return null;
     const m = lastOpponentMove as { type?: string; times?: number[] };
-    if (m.type === "DONE" && Array.isArray(m.times)) {
-      setTheirTimes(m.times);
-    }
-  }, [lastOpponentMove, isNetworked]);
+    if (m.type === "DONE" && Array.isArray(m.times)) return m.times;
+    return null;
+  }, [isNetworked, lastOpponentMove]);
 
-  useEffect(() => {
-    if (phase === "waiting" && (!isNetworked || theirTimes !== null)) setPhase("done");
-  }, [phase, theirTimes, isNetworked]);
+  const effectivePhase = (phase === "waiting" && (!isNetworked || theirTimes !== null)) ? "done" : phase;
 
   const handleTap = useCallback(() => {
     if (roundPhase === "waiting") {
@@ -123,7 +119,7 @@ export function ReactionTime({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
       </div>
 
       <AnimatePresence mode="wait">
-        {phase === "intro" && (
+        {effectivePhase === "intro" && (
           <motion.div key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4">
             <div className="bg-white/5 rounded-2xl p-4 text-center border border-white/10">
               <p className="text-4xl mb-2">⚡</p>
@@ -133,7 +129,7 @@ export function ReactionTime({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
           </motion.div>
         )}
 
-        {phase === "playing" && (
+        {effectivePhase === "playing" && (
           <motion.div key="play" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4">
             <div className="flex gap-1 justify-center">
               {Array.from({ length: ROUNDS }, (_, i) => (
@@ -159,14 +155,14 @@ export function ReactionTime({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
           </motion.div>
         )}
 
-        {phase === "waiting" && (
+        {effectivePhase === "waiting" && (
           <motion.div key="wait" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-3 py-4">
             <p className="text-sm font-bold text-amber-400">✅ Done! Your avg: {myAvg}</p>
             <p className="text-sm text-white/50 animate-pulse">Waiting for opponent to finish...</p>
           </motion.div>
         )}
 
-        {phase === "done" && (
+        {effectivePhase === "done" && (
           <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col gap-4">
             <div className="bg-white/5 rounded-2xl p-5 text-center border border-white/10">
               <p className="text-3xl font-black text-white mb-3">
