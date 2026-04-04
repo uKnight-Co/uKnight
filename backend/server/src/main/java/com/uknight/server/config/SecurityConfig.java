@@ -10,6 +10,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration; // Import this
 import org.springframework.web.cors.CorsConfigurationSource; // Import this
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource; // Import this
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; // Import this
+import org.springframework.security.crypto.password.PasswordEncoder; // Import this
 import java.util.List; // Import this
 
 @Configuration
@@ -27,6 +29,11 @@ public class SecurityConfig {
                         .anyRequest().authenticated());
 
         return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
     @org.springframework.beans.factory.annotation.Value("${cors.allowed-origins:http://localhost:3000}")

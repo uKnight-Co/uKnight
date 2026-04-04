@@ -185,7 +185,7 @@ export function Minesweeper({ onGameEnd, myRole, sendMove, lastOpponentMove }: G
         </div>
       )}
 
-      <div className="overflow-auto rounded-xl border border-white/10 bg-slate-900 p-2">
+      <div className="overflow-auto rounded-xl border border-white/10 bg-slate-900/75 p-2">
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${COLS}, 1fr)`, gap: "2px" }}>
           {board.map((row, r) => row.map((cell, c) => (
             <button key={`${r}-${c}`}
@@ -194,9 +194,9 @@ export function Minesweeper({ onGameEnd, myRole, sendMove, lastOpponentMove }: G
               disabled={cell.revealed || done}
               className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold transition-all ${
                 cell.revealed
-                  ? cell.mine ? "bg-red-600" : "bg-slate-700"
+                  ? cell.mine ? "bg-red-600" : "bg-slate-700/75"
                   : cell.flagged ? "bg-amber-500/30 hover:bg-amber-500/40"
-                  : "bg-slate-600 hover:bg-amber-500/30 cursor-pointer"
+                  : "bg-slate-600/75 hover:bg-amber-500/30 cursor-pointer"
               }`}>
               {cell.revealed
                 ? cell.mine ? "💣"
@@ -228,3 +228,5 @@ export function Minesweeper({ onGameEnd, myRole, sendMove, lastOpponentMove }: G
     </div>
   );
 }
+
+

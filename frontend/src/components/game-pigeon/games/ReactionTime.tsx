@@ -90,7 +90,7 @@ export function ReactionTime({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
     onGameEnd({ winner, yourScore: `${a1}ms avg`, strangerScore: `${a2}ms avg`, gameName: "Reaction Time", emoji: "⚡" });
   };
 
-  const bgColor = roundPhase === "green" ? "bg-emerald-500" : tooFast ? "bg-red-600" : "bg-slate-700";
+  const bgColor = roundPhase === "green" ? "bg-emerald-500" : tooFast ? "bg-red-600" : "bg-slate-700/75";
   const myAvg = myTimes.filter(t => t !== 9999).length ? `${avg(myTimes)}ms` : "—";
   const theirAvg = theirTimes ? `${avg(theirTimes)}ms` : isNetworked ? "?" : "—";
 
@@ -144,8 +144,8 @@ export function ReactionTime({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
                 : roundPhase === "waiting"
                 ? <div><p className="text-4xl font-black text-white/60">Wait...</p><p className="text-sm text-white/40 mt-1">Don&apos;t tap yet!</p></div>
                 : roundPhase === "green"
-                ? <div><p className="text-4xl font-black text-white">TAP NOW!</p><p className="text-sm text-white/90 mt-1 animate-pulse">Go go go!</p></div>
-                : <div><p className="text-4xl font-black text-white">{lastTime}ms</p><p className="text-sm text-white/90 mt-1">{lastTime! < 250 ? "⚡ Lightning!" : lastTime! < 400 ? "💪 Nice!" : "😅 A bit slow..."}</p></div>}
+                ? <div><p className="text-4xl font-black text-white">TAP NOW!</p><p className="text-sm text-white/75 mt-1 animate-pulse">Go go go!</p></div>
+                : <div><p className="text-4xl font-black text-white">{lastTime}ms</p><p className="text-sm text-white/75 mt-1">{lastTime! < 250 ? "⚡ Lightning!" : lastTime! < 400 ? "💪 Nice!" : "😅 A bit slow..."}</p></div>}
             </motion.button>
             {roundPhase === "tapped" && (
               <Button onClick={handleNext} className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl">
@@ -180,3 +180,5 @@ export function ReactionTime({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
     </div>
   );
 }
+
+

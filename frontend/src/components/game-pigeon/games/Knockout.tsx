@@ -574,3 +574,5 @@ export function Knockout({ onGameEnd, onClose, myRole, sendMove, lastOpponentMov
     </div>
   );
 }
+
+

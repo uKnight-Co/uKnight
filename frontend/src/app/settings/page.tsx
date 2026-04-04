@@ -25,6 +25,8 @@ interface UserSettings {
     schoolYear: string
     showUsername: boolean
     interests: string[]
+    username?: string
+    password?: string
 }
 
 export default function SettingsPage() {
@@ -36,6 +38,8 @@ export default function SettingsPage() {
         schoolYear: "",
         showUsername: true,
         interests: [],
+        username: "",
+        password: "",
     })
     const [saving, setSaving] = useState(false)
     const [loaded, setLoaded] = useState(false)
@@ -43,8 +47,8 @@ export default function SettingsPage() {
     useEffect(() => {
         if (!user?.uid) return
 
-        // const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
-        const apiUrl = "https://uknight-backend-536429702801.us-central1.run.app"
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+        // const apiUrl = "https://uknight-backend-536429702801.us-central1.run.app"
         fetch(`${apiUrl}/api/users/${user.uid}`)
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
@@ -55,6 +59,8 @@ export default function SettingsPage() {
                         schoolYear: data.schoolYear || "",
                         showUsername: data.showUsername ?? true,
                         interests: data.interests || [],
+                        username: data.username || "",
+                        password: "", // don't load password from backend
                     })
                 } else {
                     setSettings((prev) => ({
@@ -78,8 +84,8 @@ export default function SettingsPage() {
         setSaving(true)
 
         try {
-            // const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
-            const apiUrl = "https://uknight-backend-536429702801.us-central1.run.app"
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+            // const apiUrl = "https://uknight-backend-536429702801.us-central1.run.app"
             const res = await fetch(`${apiUrl}/api/users/${user.uid}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
@@ -91,6 +97,8 @@ export default function SettingsPage() {
                     schoolYear: settings.schoolYear,
                     showUsername: settings.showUsername,
                     interests: settings.interests,
+                    username: settings.username,
+                    password: settings.password,
                 }),
             })
 
@@ -138,6 +146,30 @@ export default function SettingsPage() {
                                     setSettings((s) => ({ ...s, displayName: e.target.value }))
                                 }
                                 placeholder="Your display name"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="customUsername">Login Username</Label>
+                            <Input
+                                id="customUsername"
+                                value={settings.username || ""}
+                                onChange={(e) =>
+                                    setSettings((s) => ({ ...s, username: e.target.value }))
+                                }
+                                placeholder="e.g. knight123"
+                            />
+                            <p className="text-xs text-muted-foreground">Used for typing username and password instead of Google login.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="customPassword">Login Password</Label>
+                            <Input
+                                id="customPassword"
+                                type="password"
+                                value={settings.password || ""}
+                                onChange={(e) =>
+                                    setSettings((s) => ({ ...s, password: e.target.value }))
+                                }
+                                placeholder="Leave blank to keep unchanged"
                             />
                         </div>
                         <div className="space-y-2">

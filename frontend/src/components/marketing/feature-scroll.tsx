@@ -19,7 +19,7 @@ const features = [
     },
     {
         title: "Expand Your Bubble.",
-        description: "Don't just stay in your dorm. Unlock connections with students from Harvard, MIT, Stanford, and 50+ other top universities.",
+        description: "No cap, expand your circle. Connect instantly with peers exclusively at the University of Central Florida.",
         color: "bg-blue-500",
         hex: "#3b82f6",
     },

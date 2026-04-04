@@ -21,13 +21,17 @@ export function Navbar() {
         <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
             <div className="flex h-14 w-full items-center px-4 md:px-8">
                 <div className="mr-4 flex">
-                    <Link className="mr-6 flex items-center space-x-2 lg:space-x-3" href="/">
-                        <Image src="/logo.png" alt="uKnight Logo" width={32} height={32} className="rounded-full shadow-sm" />
-                        <span className="hidden font-bold sm:inline-block">uKnight</span>
+                    <Link className="mr-6 flex items-center group" href="/">
+                        <Image src="/UKnightText.png" alt="uKnight Text" width={110} height={32} className="block object-contain pb-0.5 transform transition-transform group-hover:scale-105 group-hover:-rotate-1" />
                     </Link>
                 </div>
                 <div id="navbar-center-portal" className="hidden md:flex flex-1 justify-center px-4" />
                 <nav className="ml-auto flex items-center space-x-4">
+                    <Link href="https://forms.gle/frnfixAqKsSA8T6fA" target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm" className="hidden sm:flex border-amber-500/30 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400">
+                            Provide Feedback
+                        </Button>
+                    </Link>
                     {user ? (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

@@ -108,7 +108,7 @@ export function TicTacToe({ onGameEnd, myRole, sendMove, lastOpponentMove }: Gam
       )}
 
       {/* Scoreboard */}
-      <div className="flex justify-around items-center bg-white/5 rounded-2xl py-3 border border-amber-500/10">
+      <div className="flex justify-around items-center bg-slate-800/75 rounded-2xl py-3 border border-slate-700">
         <div className="text-center">
           <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">You ({mySymbol})</p>
           <p className={`text-2xl font-black ${isMyTurn && !gameOver ? "text-amber-400" : "text-white"}`}>
@@ -131,12 +131,12 @@ export function TicTacToe({ onGameEnd, myRole, sendMove, lastOpponentMove }: Gam
       <AnimatePresence mode="wait">
         {!gameOver ? (
           <motion.div key={turn} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
-            className={`text-center text-sm font-bold py-1.5 rounded-xl ${isMyTurn ? "text-amber-400 bg-amber-500/10 border border-amber-500/20" : "text-cyan-400 bg-cyan-500/10"}`}>
+            className={`text-center text-sm font-bold py-1.5 rounded-xl ${isMyTurn ? "text-amber-400 bg-amber-900/75 border border-amber-700" : "text-cyan-400 bg-slate-800/75"}`}>
             {waitingForOpponent ? "Waiting for opponent..." : `${currentPlayer}'s Turn`}
           </motion.div>
         ) : (
           <motion.div key="result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-            className={`text-center text-sm font-bold py-1.5 rounded-xl ${isDraw ? "text-amber-400 bg-amber-500/10" : youWon ? "text-amber-400 bg-amber-500/10 border border-amber-500/30" : "text-cyan-400 bg-cyan-500/10"}`}>
+            className={`text-center text-sm font-bold py-1.5 rounded-xl ${isDraw ? "text-amber-400 bg-amber-900/75" : youWon ? "text-amber-400 bg-amber-900/75 border border-amber-700" : "text-cyan-400 bg-slate-800/75"}`}>
             {isDraw ? "Draw! 🤝" : youWon ? "You win this round! 🎉" : "Stranger wins this round!"}
           </motion.div>
         )}
@@ -150,8 +150,8 @@ export function TicTacToe({ onGameEnd, myRole, sendMove, lastOpponentMove }: Gam
             whileTap={{ scale: cell || gameOver || (isNetworked && !isMyTurn) ? 1 : 0.95 }}
             onClick={() => handleClick(i)}
             className={`aspect-square rounded-xl flex items-center justify-center border transition-all ${
-              winLine?.includes(i) ? "border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-500/30"
-              : "border-white/10 bg-white/5 hover:bg-amber-500/10 hover:border-amber-500/30"
+              winLine?.includes(i) ? "border-amber-500 bg-amber-700/75 shadow-lg shadow-amber-500/30"
+              : "border-slate-600 bg-slate-800/75 hover:bg-amber-900/75 hover:border-amber-600"
             } ${!cell && !gameOver && (!isNetworked || isMyTurn) ? "cursor-pointer" : "cursor-default"}`}>
             <AnimatePresence>
               {cell && (
@@ -178,3 +178,5 @@ export function TicTacToe({ onGameEnd, myRole, sendMove, lastOpponentMove }: Gam
     </div>
   );
 }
+
+

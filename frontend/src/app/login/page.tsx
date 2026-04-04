@@ -9,12 +9,14 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Chrome } from "lucide-react"
+import { useAuth } from "@/context/auth-context"
 
 export default function LoginPage() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [error, setError] = useState("")
     const router = useRouter()
+    const { setCustomLogin } = useAuth()
 
     const syncUserAndRedirect = async (user: User) => {
         try {
@@ -62,11 +64,44 @@ export default function LoginPage() {
 
     const handleEmailLogin = async (e: React.FormEvent) => {
         e.preventDefault()
+        setError("")
+
+        // Try custom backend login first
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+            // const apiUrl = "https://uknight-backend-536429702801.us-central1.run.app"
+            const res = await fetch(`${apiUrl}/api/users/custom-login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: email, password }),
+            })
+
+            if (res.ok) {
+                const userData = await res.json()
+                setCustomLogin({
+                    uid: userData.userId,
+                    email: userData.email,
+                    displayName: userData.displayName,
+                    photoURL: userData.profilePicture,
+                }, userData.verified || false)
+
+                if (userData.verified) {
+                    router.push("/lobby")
+                } else {
+                    router.push("/verify-email")
+                }
+                return;
+            }
+        } catch {
+            // Backend custom login failed, fallback to Firebase
+        }
+
+        // Fallback to purely Firebase Email/Password
         try {
             const result = await signInWithEmailAndPassword(auth, email, password)
             await syncUserAndRedirect(result.user)
-        } catch (err) {
-            setError("Invalid email or password.")
+        } catch (err: any) {
+            setError(err?.message || "Invalid username/email or password.")
             console.error(err)
         }
     }
@@ -78,7 +113,7 @@ export default function LoginPage() {
                     <div className="grid gap-2 text-center">
                         <h1 className="text-3xl font-bold">Login</h1>
                         <p className="text-balance text-muted-foreground">
-                            Enter your email below to login to your account
+                            Enter your email or username below to login
                         </p>
                     </div>
                     <div className="grid gap-4">
@@ -100,8 +135,8 @@ export default function LoginPage() {
                             <div className="grid gap-2">
                                 <Input
                                     id="email"
-                                    type="email"
-                                    placeholder="m@example.com"
+                                    type="text"
+                                    placeholder="Username or Email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required

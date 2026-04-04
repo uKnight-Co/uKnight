@@ -206,3 +206,5 @@ export function MathDuel({ onGameEnd, myRole, sendMove, lastOpponentMove }: Game
     </div>
   );
 }
+
+

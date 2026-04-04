@@ -283,3 +283,5 @@ export function Snake({ onGameEnd, myRole, sendMove, lastOpponentMove }: GamePro
     </div>
   );
 }
+
+

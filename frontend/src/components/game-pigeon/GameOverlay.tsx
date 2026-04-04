@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trophy, ChevronRight, Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,19 @@ export function GameOverlay({ gameId, modularQueue, onGameResult, onClose, myRol
   const currentGame = GAMES.find((g) => g.id === currentGameId);
   const GameComponent = currentGame?.component;
 
+  const handleClose = () => {
+    if (sendMove) {
+      sendMove({ type: "FORCE_CLOSE" });
+    }
+    onClose();
+  };
+
+  useEffect(() => {
+    if (lastOpponentMove?.type === "FORCE_CLOSE") {
+      onClose();
+    }
+  }, [lastOpponentMove, onClose]);
+
   const handleGameEnd = (result: GameResult) => {
     if (isModular) {
       setLastResult(result);
@@ -43,7 +56,7 @@ export function GameOverlay({ gameId, modularQueue, onGameResult, onClose, myRol
       }
     } else {
       onGameResult(result);
-      onClose();
+      handleClose();
     }
   };
 
@@ -63,7 +76,7 @@ export function GameOverlay({ gameId, modularQueue, onGameResult, onClose, myRol
       gameName: `Tournament (${totalGames} games)`,
       emoji: "🏆",
     });
-    onClose();
+    handleClose();
   };
 
   if (!currentGame || !GameComponent) return null;
@@ -74,35 +87,39 @@ export function GameOverlay({ gameId, modularQueue, onGameResult, onClose, myRol
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 z-50 flex items-end md:items-center justify-center bg-black/75 backdrop-blur-md"
+        className="absolute inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-md"
       >
         <motion.div
           initial={{ opacity: 0, y: 60, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 60, scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 280, damping: 26 }}
-          className="w-full md:max-w-md bg-slate-900 border border-white/10 rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[90vh]"
+          transition={{ type: "spring", stiffness: 300, damping: 28 }}
+          className={`w-full md:max-w-md bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 border-4 border-black rounded-t-[32px] md:rounded-[32px] overflow-hidden shadow-[8px_8px_0_0_rgba(0,0,0,0.5)] flex flex-col max-h-[90vh] font-[family-name:var(--font-mountains)] relative z-10`}
         >
+          {/* Comic dot halftone overlay for modal */}
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,black_2px,transparent_2px)] [background-size:12px_12px] z-0 pointer-events-none mix-blend-overlay"></div>
+          
+          <div className="relative z-10 flex flex-col h-full">
           {/* Handle */}
           <div className="flex justify-center pt-3 md:hidden">
             <div className="w-10 h-1 bg-white/20 rounded-full" />
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-white/5 flex-shrink-0">
+          <div className="flex items-center justify-between px-5 py-4 border-b-4 border-black/50 bg-black/20 flex-shrink-0 relative z-10">
             <div className="flex items-center gap-2.5">
-              <div className="bg-emerald-500/20 p-2 rounded-xl">
-                <span className="text-base">{currentGame.emoji}</span>
+              <div className="bg-amber-400 p-2 rounded-xl border-2 border-black transform -rotate-3 shadow-[2px_2px_0_0_rgba(0,0,0,1)] flex items-center justify-center">
+                <span className="text-xl flex">{currentGame.emoji}</span>
               </div>
               <div>
-                <h2 className="text-base font-bold text-white leading-tight">{currentGame.name}</h2>
+                <h2 className="text-2xl font-bold text-white leading-none tracking-wider text-shadow-sm">{currentGame.name}</h2>
                 {isModular && (
-                  <p className="text-[11px] text-amber-400 font-medium">
+                  <p className="text-sm text-amber-400 font-bold mt-1">
                     Tournament — Game {modularIndex + 1}/{modularQueue!.length}
                   </p>
                 )}
                 {myRole && (
-                  <p className="text-[10px] text-emerald-400/70">
+                  <p className="text-sm text-emerald-400/90 font-bold mt-1">
                     🌐 Live multiplayer
                   </p>
                 )}
@@ -112,18 +129,18 @@ export function GameOverlay({ gameId, modularQueue, onGameResult, onClose, myRol
             <div className="flex items-center gap-2">
               {/* Modular score */}
               {isModular && (
-                <div className="flex items-center gap-1.5 bg-white/5 rounded-full px-3 py-1 border border-white/8">
-                  <span className="text-xs font-bold text-emerald-400">{modularScores.you}</span>
-                  <span className="text-xs text-white/30">–</span>
-                  <span className="text-xs font-bold text-rose-400">{modularScores.stranger}</span>
+                <div className="flex items-center gap-1.5 bg-black/30 rounded-full px-3 py-1 border-2 border-black shadow-inner">
+                  <span className="text-sm font-bold text-emerald-400">{modularScores.you}</span>
+                  <span className="text-sm text-white/50 font-bold">–</span>
+                  <span className="text-sm font-bold text-rose-400">{modularScores.stranger}</span>
                 </div>
               )}
               <Button
                 variant="ghost" size="icon"
-                onClick={onClose}
-                className="rounded-full hover:bg-white/10 text-white/40 hover:text-white h-8 w-8"
+                onClick={handleClose}
+                className="rounded-full hover:bg-white/20 text-white/70 hover:text-white h-10 w-10 border-2 border-transparent hover:border-white/50 transition-all ml-2"
               >
-                <X className="w-4 h-4" />
+                <X className="w-6 h-6" />
               </Button>
             </div>
           </div>
@@ -223,7 +240,7 @@ export function GameOverlay({ gameId, modularQueue, onGameResult, onClose, myRol
                 <motion.div key={`game-${modularIndex}-${currentGameId}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                   <GameComponent
                     onGameEnd={handleGameEnd}
-                    onClose={onClose}
+                    onClose={handleClose}
                     myRole={myRole}
                     sendMove={sendMove}
                     lastOpponentMove={lastOpponentMove}
@@ -231,6 +248,7 @@ export function GameOverlay({ gameId, modularQueue, onGameResult, onClose, myRol
                 </motion.div>
               )}
             </AnimatePresence>
+          </div>
           </div>
         </motion.div>
       </motion.div>

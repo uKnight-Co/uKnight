@@ -135,7 +135,7 @@ export function RockPaperScissors({ onGameEnd, onClose: _onClose, myRole, sendMo
           <span>Live — Both pick simultaneously</span>
         </div>
 
-        <div className="flex justify-around items-center bg-white/5 rounded-2xl py-3 border border-white/5">
+        <div className="flex justify-around items-center bg-slate-800/75 rounded-2xl py-3 border border-slate-700">
           <div className="text-center">
             <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">You</p>
             <p className="text-2xl font-black text-amber-400">{scores.me}</p>
@@ -172,10 +172,10 @@ export function RockPaperScissors({ onGameEnd, onClose: _onClose, myRole, sendMo
                     disabled={!!myChoice}
                     className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
                       myChoice === label
-                        ? "bg-amber-500/20 border-amber-500/50"
+                        ? "bg-amber-900/75 border-amber-600"
                         : myChoice
-                        ? "bg-white/5 border-white/5 opacity-40 cursor-not-allowed"
-                        : "bg-white/5 border-white/10 hover:border-amber-500/50 hover:bg-amber-500/10 cursor-pointer"
+                        ? "bg-slate-800/75 border-slate-700 opacity-40 cursor-not-allowed"
+                        : "bg-slate-800/75 border-slate-600 hover:border-amber-600 hover:bg-amber-900/75 cursor-pointer"
                     }`}
                   >
                     <span className="text-4xl">{e}</span>
@@ -186,7 +186,7 @@ export function RockPaperScissors({ onGameEnd, onClose: _onClose, myRole, sendMo
             </motion.div>
           ) : (
             <motion.div key="reveal" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col gap-4">
-              <div className="flex items-center justify-around bg-white/5 rounded-2xl py-6 border border-white/5">
+              <div className="flex items-center justify-around bg-slate-800/75 rounded-2xl py-6 border border-slate-700">
                 <div className="text-center">
                   <p className="text-[10px] text-white/40 uppercase mb-2">You</p>
                   <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }} className="text-5xl block">
@@ -203,7 +203,7 @@ export function RockPaperScissors({ onGameEnd, onClose: _onClose, myRole, sendMo
                   <p className="text-sm text-white/70 mt-2">{opponentChoice}</p>
                 </div>
               </div>
-              <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-center text-base font-bold text-white bg-white/5 py-2 rounded-xl">
+              <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-center text-base font-bold text-white bg-slate-800/75 py-2 rounded-xl">
                 {roundResult}
               </motion.p>
               <Button onClick={nextRoundNetworked} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl">
@@ -243,7 +243,7 @@ export function RockPaperScissors({ onGameEnd, onClose: _onClose, myRole, sendMo
             <div className="grid grid-cols-3 gap-3">
               {CHOICES.map(({ label, emoji: e }) => (
                 <motion.button key={label} whileHover={{ scale: 1.08, y: -4 }} whileTap={{ scale: 0.95 }} onClick={() => handleP1Pick(label)}
-                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all">
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-slate-800/75 border border-slate-600 hover:border-amber-600 hover:bg-amber-900/75 transition-all">
                   <span className="text-4xl">{e}</span>
                   <span className="text-xs text-white/70 font-medium">{label}</span>
                 </motion.button>
@@ -259,7 +259,7 @@ export function RockPaperScissors({ onGameEnd, onClose: _onClose, myRole, sendMo
             <div className="grid grid-cols-3 gap-3">
               {CHOICES.map(({ label, emoji: e }) => (
                 <motion.button key={label} whileHover={{ scale: 1.08, y: -4 }} whileTap={{ scale: 0.95 }} onClick={() => handleP2Pick(label)}
-                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all">
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-slate-800/75 border border-slate-600 hover:border-rose-600 hover:bg-rose-900 transition-all">
                   <span className="text-4xl">{e}</span>
                   <span className="text-xs text-white/70 font-medium">{label}</span>
                 </motion.button>
@@ -269,7 +269,7 @@ export function RockPaperScissors({ onGameEnd, onClose: _onClose, myRole, sendMo
         )}
         {phase === "reveal" && (
           <motion.div key="reveal" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col gap-4">
-            <div className="flex items-center justify-around bg-white/5 rounded-2xl py-6 border border-white/5">
+            <div className="flex items-center justify-around bg-slate-800/75 rounded-2xl py-6 border border-slate-700">
               <div className="text-center">
                 <p className="text-[10px] text-white/40 uppercase mb-2">You</p>
                 <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }} className="text-5xl block">{emoji(p1Choice)}</motion.span>
@@ -282,7 +282,7 @@ export function RockPaperScissors({ onGameEnd, onClose: _onClose, myRole, sendMo
                 <p className="text-sm text-white/70 mt-2">{opponentChoice}</p>
               </div>
             </div>
-            <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-center text-base font-bold text-white bg-white/5 py-2 rounded-xl">
+            <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-center text-base font-bold text-white bg-slate-800/75 py-2 rounded-xl">
               {roundResult}
             </motion.p>
             <Button onClick={nextRoundOffline} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl">
@@ -294,3 +294,5 @@ export function RockPaperScissors({ onGameEnd, onClose: _onClose, myRole, sendMo
     </div>
   );
 }
+
+

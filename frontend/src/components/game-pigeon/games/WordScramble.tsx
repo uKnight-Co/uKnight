@@ -162,7 +162,7 @@ export function WordScramble({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
         </div>
       )}
 
-      <div className="flex justify-around items-center bg-white/5 rounded-2xl py-3 border border-amber-500/10">
+      <div className="flex justify-around items-center bg-slate-800/75 rounded-2xl py-3 border border-slate-700">
         <div className="text-center">
           <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">You</p>
           <p className="text-2xl font-black text-amber-400">{scores.me}</p>
@@ -190,7 +190,7 @@ export function WordScramble({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
               <div className={`h-full rounded-full transition-all ${timerPct > 50 ? "bg-amber-500" : timerPct > 25 ? "bg-orange-500" : "bg-red-500"}`} style={{ width: `${timerPct}%` }} />
             </div>
             <p className="text-center text-sm font-bold text-white/60">{timeLeft}s remaining</p>
-            <div className="bg-white/5 rounded-2xl p-5 text-center border border-white/10">
+            <div className="bg-slate-800/75 rounded-2xl p-5 text-center border border-slate-700">
               <p className="text-[10px] text-white/40 uppercase mb-2">Unscramble this!</p>
               <p className="text-4xl font-black text-white tracking-[0.3em]">{scrambledWord}</p>
             </div>
@@ -216,7 +216,7 @@ export function WordScramble({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
               <p className="text-[10px] text-white/40 uppercase mb-2">The word was</p>
               <p className="text-3xl font-black text-amber-400 tracking-widest">{word}</p>
             </div>
-            <p className="text-center text-base font-bold text-white bg-white/5 py-3 rounded-xl">{roundMsg}</p>
+            <p className="text-center text-base font-bold text-white bg-slate-800/75 py-3 rounded-xl">{roundMsg}</p>
             <Button onClick={nextRound} className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl">
               {round >= ROUNDS ? "See Final Result" : "Next Word →"}
             </Button>
@@ -238,3 +238,5 @@ export function WordScramble({ onGameEnd, myRole, sendMove, lastOpponentMove }: 
     </div>
   );
 }
+
+

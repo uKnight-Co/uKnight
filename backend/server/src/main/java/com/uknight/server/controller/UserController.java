@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Map;
 
@@ -16,6 +17,7 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final PasswordEncoder passwordEncoder;
 
     @PostMapping
     public ResponseEntity<User> createUser(@RequestBody User user) {
@@ -56,6 +58,17 @@ public class UserController {
         }
     }
 
+    @PostMapping("/custom-login")
+    public ResponseEntity<User> customLogin(@RequestBody Map<String, String> creds) {
+        String username = creds.get("username");
+        String password = creds.get("password");
+
+        return userService.findByUsername(username)
+                .filter(u -> passwordEncoder.matches(password, u.getPassword()))
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(401).build());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<User> getUser(@PathVariable String id) {
         return userService.getUserById(id)
@@ -82,6 +95,10 @@ public class UserController {
                             existing.setGender(updatedFields.getGender());
                         if (updatedFields.getInterests() != null)
                             existing.setInterests(updatedFields.getInterests());
+                        if (updatedFields.getUsername() != null)
+                            existing.setUsername(updatedFields.getUsername());
+                        if (updatedFields.getPassword() != null && !updatedFields.getPassword().isBlank())
+                            existing.setPassword(passwordEncoder.encode(updatedFields.getPassword()));
                         return ResponseEntity.ok(userService.updateUser(existing));
                     })
                     .orElse(ResponseEntity.notFound().build());

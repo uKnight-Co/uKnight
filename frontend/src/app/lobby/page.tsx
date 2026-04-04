@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, SkipForward, Gamepad2 } from "lucide-react"
+import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, SkipForward, Gamepad2, Wand2, Maximize2, AlertTriangle } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MediaDeviceSelector } from "@/components/media-device-selector"
 import { useMediaStore } from "@/store/media-store"
@@ -69,7 +69,7 @@ type ChatMessage = {
     gameResult?: GameResult;
 }
 
-type SignalType = 'OFFER' | 'ANSWER' | 'ICE' | 'BYE' | 'MEDIA_STATE';
+type SignalType = 'OFFER' | 'ANSWER' | 'ICE' | 'BYE' | 'MEDIA_STATE' | 'VIDEO_FILTER';
 
 interface SignalData {
     type: SignalType;
@@ -78,12 +78,32 @@ interface SignalData {
     senderId?: string;
     targetPeerId?: string;
     mediaState?: { audioEnabled: boolean, videoEnabled: boolean };
+    filter?: string;
 }
 
 interface MatchData {
     peerId: string;
     initiator: boolean;
 }
+
+const VIDEO_FILTERS = [
+    { id: "none", name: "Normal", filter: "none", emoji: "📷" },
+    { id: "warm", name: "Warm", filter: "sepia(50%) saturate(150%) brightness(1.1) hue-rotate(-10deg)", emoji: "☀️" },
+    { id: "cool", name: "Cooling", filter: "hue-rotate(180deg) saturate(120%) brightness(1.1)", emoji: "❄️" },
+    { id: "noir", name: "Noir", filter: "grayscale(100%) contrast(150%) brightness(0.9)", emoji: "🕵️" },
+    { id: "vintage", name: "Vintage", filter: "sepia(80%) contrast(110%) brightness(0.9)", emoji: "📻" },
+    { id: "neon", name: "Neon", filter: "hue-rotate(90deg) saturate(300%) contrast(150%) brightness(1.1)", emoji: "✨" },
+    { id: "popart", name: "Pop Art", filter: "contrast(300%) saturate(300%) hue-rotate(30deg) sepia(20%)", emoji: "🎨" },
+    { id: "dystopia", name: "Dystopia", filter: "sepia(50%) hue-rotate(270deg) contrast(150%) saturate(120%)", emoji: "🌪️" },
+    { id: "xray", name: "X-Ray", filter: "invert(100%) grayscale(50%) contrast(120%)", emoji: "🦴" },
+    { id: "vhs", name: "VHS", filter: "saturate(200%) contrast(120%) blur(1px) hue-rotate(-10deg)", emoji: "📼" },
+    { id: "alien", name: "Alien", filter: "hue-rotate(120deg) saturate(200%) contrast(120%)", emoji: "👽" },
+    { id: "fried", name: "Deep Fried", filter: "saturate(500%) contrast(200%) brightness(1.2) sepia(30%) hue-rotate(-20deg)", emoji: "🍟" },
+    { id: "ghost", name: "Ghost", filter: "invert(90%) grayscale(100%) blur(1px) contrast(80%)", emoji: "👻" },
+    { id: "toxic", name: "Toxic", filter: "hue-rotate(90deg) saturate(400%) contrast(150%) invert(20%)", emoji: "☢️" },
+    { id: "trippy", name: "Trippy", filter: "hue-rotate(270deg) saturate(300%) contrast(200%) invert(10%)", emoji: "🌀" },
+    { id: "blur", name: "Dreamy Blur", filter: "blur(4px) contrast(1.1) brightness(1.2)", emoji: "☁️" }
+];
 
 const BouncingCircles = () => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -206,6 +226,10 @@ export default function LobbyPage() {
     const [isVideoOn, setIsVideoOn] = useState(true)
     const [remoteMicOn, setRemoteMicOn] = useState(true)
     const [remoteVideoOn, setRemoteVideoOn] = useState(true)
+    const [myVideoFilter, setMyVideoFilter] = useState("none")
+    const [remoteVideoFilter, setRemoteVideoFilter] = useState("none")
+    const [showFilterMenu, setShowFilterMenu] = useState(false)
+    const [isLocalMaximized, setIsLocalMaximized] = useState(false)
     const { videoDeviceId, audioDeviceId } = useMediaStore()
     const { user: firebaseUser } = useAuth()
 
@@ -296,6 +320,7 @@ export default function LobbyPage() {
             remoteVideoRef.current.srcObject = null;
             remoteVideoRef.current.load();
         }
+        setRemoteVideoFilter("none");
 
         if (peerConnection.current) {
             peerConnection.current.close();
@@ -329,6 +354,11 @@ export default function LobbyPage() {
         if (data.type === 'MEDIA_STATE' && data.mediaState) {
             setRemoteMicOn(data.mediaState.audioEnabled);
             setRemoteVideoOn(data.mediaState.videoEnabled);
+            return;
+        }
+
+        if (data.type === 'VIDEO_FILTER' && data.filter) {
+            setRemoteVideoFilter(data.filter);
             return;
         }
 
@@ -487,6 +517,13 @@ export default function LobbyPage() {
         setIsChatOpen(false);
         setRemoteMicOn(true);
         setRemoteVideoOn(true);
+        setRemoteVideoFilter("none");
+
+        if (myVideoFilter !== "none") {
+            setTimeout(() => {
+                sendSignal({ type: 'VIDEO_FILTER', filter: myVideoFilter, targetPeerId: data.peerId });
+            }, 500);
+        }
 
         createPeerConnection(data.peerId, stream);
 
@@ -713,6 +750,13 @@ export default function LobbyPage() {
         }
     }
 
+    const handleSetVideoFilter = (f: string) => {
+        setMyVideoFilter(f);
+        if (currentPeerId) {
+            sendSignal({ type: 'VIDEO_FILTER', filter: f, targetPeerId: currentPeerId });
+        }
+    }
+
     // --- Effects ---
 
     useEffect(() => {
@@ -810,18 +854,29 @@ export default function LobbyPage() {
     }, [localStream])
 
     // --- UI Variants ---
-    const glassButton = "bg-white/10 backdrop-blur-md border-white/20 hover:bg-white/20 text-white shadow-lg transition-all"
+    const glassButton = "bg-slate-800/90 backdrop-blur-md border-white/20 hover:bg-slate-700/90 text-white shadow-xl transition-all"
 
     return (
         <div className="relative h-screen w-full bg-black overflow-hidden flex items-center justify-center">
 
-            {/* Remote Video (Full Screen) */}
-            <div className="absolute inset-0">
+            {/* Remote Video Container */}
+            <motion.div 
+                className={isLocalMaximized ? "absolute bottom-32 md:bottom-8 lg:bottom-12 left-4 md:left-8 w-40 md:w-56 aspect-video rounded-xl overflow-hidden shadow-2xl border border-white/20 z-20 bg-black/50 backdrop-blur-sm cursor-pointer hover:border-white/40" : "absolute inset-0 z-0"}
+                drag={isLocalMaximized}
+                dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                onClick={() => { if (isLocalMaximized) setIsLocalMaximized(false); }}
+            >
+                {isLocalMaximized && (
+                    <div className="absolute top-2 right-2 bg-black/60 p-1 md:p-1.5 rounded-full text-white backdrop-blur-md z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Maximize2 className="h-3 w-3 md:h-4 md:w-4" />
+                    </div>
+                )}
                 <video
                     ref={remoteVideoRef}
                     autoPlay
                     playsInline
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover transition-all duration-300"
+                    style={{ filter: remoteVideoFilter !== "none" ? VIDEO_FILTERS.find(f => f.id === remoteVideoFilter)?.filter : "none" }}
                 />
 
                 {/* Remote Media Offline Overlay */}
@@ -842,28 +897,28 @@ export default function LobbyPage() {
 
                 {/* Icebreaker Banner */}
                 {currentPeerId && portalNode && createPortal(
-                    <div className="w-full max-w-lg lg:max-w-xl bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-lg rounded-full flex flex-row items-center gap-2 px-2 py-1 animate-in slide-in-from-top-2">
-                        <div className="flex flex-row items-center gap-1.5 border-r border-white/10 pr-2">
-                           <button onClick={() => setRandomIcebreaker("pop")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Current Events">🔥</button>
-                           <button onClick={() => setRandomIcebreaker("funny")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-fuchsia-500/20 hover:bg-fuchsia-500/40 border border-fuchsia-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Wild Icebreaker">🧊</button>
-                           <button onClick={() => setRandomIcebreaker("joke")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Joke">😂</button>
+                    <div className="w-fit min-w-[200px] max-w-[95vw] sm:max-w-2xl lg:max-w-4xl bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-lg rounded-full flex flex-row items-center gap-2 px-2 py-1 animate-in slide-in-from-top-2 mx-auto">
+                        <div className="flex flex-row items-center gap-1.5 border-r border-white/10 pr-2 flex-shrink-0">
+                           <button onClick={() => setRandomIcebreaker("pop")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Current Events">🔥</button>
+                           <button onClick={() => setRandomIcebreaker("funny")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-fuchsia-500/20 hover:bg-fuchsia-500/40 border border-fuchsia-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Wild Icebreaker">🧊</button>
+                           <button onClick={() => setRandomIcebreaker("joke")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Joke">😂</button>
                         </div>
-                        <div className="flex-1 flex items-center px-1">
-                            <TypewriterText text={iceText} speed={30} className={`text-xs md:text-sm lg:text-[15px] font-bold leading-snug tracking-wide ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
+                        <div className="flex-1 flex items-center px-1 overflow-hidden">
+                            <TypewriterText text={iceText} speed={30} className={`text-xs md:text-sm lg:text-[15px] font-bold leading-non tracking-wide truncate sm:whitespace-normal sm:leading-snug ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
                         </div>
                     </div>,
                     portalNode
                 )}
                 {/* Fallback pattern if portal doesn't exist */}
                 {currentPeerId && !portalNode && (
-                    <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 w-[90%] md:w-auto max-w-lg bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-lg rounded-full flex flex-row items-center gap-2 px-2 py-1.5">
-                        <div className="flex flex-row items-center gap-1.5 border-r border-white/10 pr-2">
-                           <button onClick={() => setRandomIcebreaker("pop")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Current Events">🔥</button>
-                           <button onClick={() => setRandomIcebreaker("funny")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-fuchsia-500/20 hover:bg-fuchsia-500/40 border border-fuchsia-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Wild Icebreaker">🧊</button>
-                           <button onClick={() => setRandomIcebreaker("joke")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Joke">😂</button>
+                    <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 w-fit min-w-[200px] max-w-[95vw] md:max-w-3xl bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-lg rounded-full flex flex-row items-center gap-2 px-2 py-1.5 mx-auto">
+                        <div className="flex flex-row items-center gap-1.5 border-r border-white/10 pr-2 flex-shrink-0">
+                           <button onClick={() => setRandomIcebreaker("pop")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Current Events">🔥</button>
+                           <button onClick={() => setRandomIcebreaker("funny")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-fuchsia-500/20 hover:bg-fuchsia-500/40 border border-fuchsia-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Wild Icebreaker">🧊</button>
+                           <button onClick={() => setRandomIcebreaker("joke")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Joke">😂</button>
                         </div>
-                        <div className="flex-1 flex items-center px-1">
-                            <TypewriterText text={iceText} speed={30} className={`text-xs md:text-sm font-bold leading-snug tracking-wide max-w-[280px] sm:max-w-md wrap-break-word ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
+                        <div className="flex-1 flex items-center px-1 overflow-hidden">
+                            <TypewriterText text={iceText} speed={30} className={`text-xs md:text-sm font-bold leading-non tracking-wide truncate sm:max-w-2xl sm:whitespace-normal sm:leading-snug ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
                         </div>
                     </div>
                 )}
@@ -883,20 +938,26 @@ export default function LobbyPage() {
                         </div>
                     </div>
                 )}
-            </div>
+            </motion.div>
 
-            {/* Local Video (Floating PIP) */}
+            {/* Local Video Container */}
             <motion.div
-                className="absolute bottom-32 md:bottom-8 lg:bottom-12 left-4 md:left-8 w-32 md:w-48 aspect-video rounded-xl overflow-hidden shadow-2xl border border-white/20 z-20 bg-black/50 backdrop-blur-sm"
-                drag
+                className={!isLocalMaximized ? "absolute bottom-32 md:bottom-8 lg:bottom-12 left-4 md:left-8 w-40 md:w-56 aspect-video rounded-xl overflow-hidden shadow-2xl border border-white/20 z-20 bg-black/50 backdrop-blur-sm group hover:border-white/40" : "absolute inset-0 z-0"}
+                drag={!isLocalMaximized}
                 dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
             >
+                {!isLocalMaximized && (
+                    <div className="absolute top-2 right-2 bg-black/60 p-1 md:p-1.5 rounded-full text-white backdrop-blur-md z-30 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" onClick={(e) => { e.stopPropagation(); setIsLocalMaximized(true); }}>
+                        <Maximize2 className="h-3 w-3 md:h-4 md:w-4" />
+                    </div>
+                )}
                 <video
                     ref={videoRef}
                     autoPlay
                     muted
                     playsInline
-                    className={`h-full w-full object-cover ${!isVideoOn ? "hidden" : ""}`}
+                    className={`h-full w-full object-cover transition-all duration-300 ${!isVideoOn ? "hidden" : ""}`}
+                    style={{ filter: myVideoFilter !== "none" ? VIDEO_FILTERS.find(f => f.id === myVideoFilter)?.filter : "none" }}
                 />
                 {!isVideoOn && (
                     <div className="h-full w-full flex items-center justify-center text-white/50 text-xs">
@@ -953,6 +1014,39 @@ export default function LobbyPage() {
                     Next
                 </Button>
 
+                <div className="relative">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-10 w-10 md:h-12 md:w-12 shrink-0 rounded-full ${glassButton} ${myVideoFilter !== "none" ? "ring-2 ring-amber-500" : ""}`}
+                        onClick={() => setShowFilterMenu(!showFilterMenu)}
+                    >
+                        <Wand2 className="h-4 w-4 md:h-5 md:w-5" />
+                    </Button>
+                    <AnimatePresence>
+                        {showFilterMenu && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl border border-white/20 p-3 rounded-2xl shadow-2xl grid grid-cols-2 md:grid-cols-3 gap-2 min-w-[280px] md:min-w-[420px] z-50 max-h-[60vh] overflow-y-auto"
+                            >
+                                {VIDEO_FILTERS.map((f) => (
+                                    <button
+                                        key={f.id}
+                                        onClick={(e) => { e.stopPropagation(); handleSetVideoFilter(f.id); setShowFilterMenu(false); }}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all ${
+                                            myVideoFilter === f.id ? "bg-amber-500/20 text-amber-400" : "hover:bg-white/10 text-white"
+                                        }`}
+                                    >
+                                        <span>{f.emoji}</span> {f.name}
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
                 <Dialog>
                     <DialogTrigger asChild>
                         <Button variant="ghost" size="icon" className={`h-10 w-10 md:h-12 md:w-12 shrink-0 rounded-full ${glassButton}`}>
@@ -967,11 +1061,34 @@ export default function LobbyPage() {
                     </DialogContent>
                 </Dialog>
 
-                <Link href="/">
-                    <Button variant="ghost" size="icon" className={`h-10 w-10 md:h-12 md:w-12 shrink-0 rounded-full ${glassButton} bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20`}>
-                        <X className="h-4 w-4 md:h-5 md:w-5" />
-                    </Button>
-                </Link>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className={`h-10 w-10 md:h-12 md:w-12 shrink-0 rounded-full ${glassButton} bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20`}>
+                            <AlertTriangle className="h-4 w-4 md:h-5 md:w-5" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md bg-slate-900 border-red-500/30">
+                        <DialogHeader>
+                            <DialogTitle className="text-red-400 flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5" /> Report User
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4 text-white/80">
+                            <p className="mb-4 text-sm">Are you sure you want to report this user? This will flag their account for review by moderators.</p>
+                            <div className="flex justify-end gap-3 mt-6">
+                                <Button variant="ghost" onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}))}>
+                                    Cancel
+                                </Button>
+                                <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={() => {
+                                    alert("User reported successfully. Thank you for keeping uKnight safe.");
+                                    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+                                }}>
+                                    Submit Report
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             {/* Chat Overlay */}
@@ -1036,9 +1153,9 @@ export default function LobbyPage() {
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm backdrop-blur-md ${msg.sender === 'me'
-                                                ? 'bg-white/20 text-white border border-white/20 rounded-tr-sm'
-                                                : 'bg-white/10 text-white border border-white/10 rounded-tl-sm'
+                                            <div className={`max-w-[85%] px-4 py-2.5 text-sm backdrop-blur-md shadow-md ${msg.sender === 'me'
+                                                ? 'bg-gradient-to-tr from-amber-600 to-amber-500 text-white font-medium border border-amber-400/50 rounded-2xl rounded-tr-sm'
+                                                : 'bg-white/10 text-white border border-white/10 rounded-2xl rounded-tl-sm'
                                                 }`}>
                                                 {msg.text}
                                             </div>

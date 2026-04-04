@@ -1,17 +1,25 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import { User, onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth"
+import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import { useRouter, usePathname } from "next/navigation"
 
 const PUBLIC_PATHS = ["/", "/login", "/signup", "/about", "/careers", "/contact", "/legal/privacy", "/legal/terms", "/verify-email"]
 
+interface SessionUser {
+    uid: string
+    email: string | null
+    displayName: string | null
+    photoURL: string | null
+}
+
 interface AuthContextType {
-    user: User | null
+    user: SessionUser | null
     loading: boolean
     isVerified: boolean
     signOut: () => Promise<void>
+    setCustomLogin: (userData: SessionUser, verified: boolean) => void
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,23 +27,38 @@ const AuthContext = createContext<AuthContextType>({
     loading: true,
     isVerified: false,
     signOut: async () => { },
+    setCustomLogin: () => { },
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null)
+    const [user, setUser] = useState<SessionUser | null>(null)
     const [loading, setLoading] = useState(true)
     const [isVerified, setIsVerified] = useState(false)
     const router = useRouter()
     const pathname = usePathname()
+
+    // Helper to allow custom frontend logins
+    const setCustomLogin = (userData: SessionUser, verified: boolean) => {
+        localStorage.setItem("uknight_custom_user", JSON.stringify(userData))
+        localStorage.setItem("uknight_custom_verified", String(verified))
+        setUser(userData)
+        setIsVerified(verified)
+    }
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setUser(firebaseUser)
 
             if (firebaseUser) {
+                setUser({
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    displayName: firebaseUser.displayName,
+                    photoURL: firebaseUser.photoURL,
+                })
                 try {
-                    // const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
-                    const apiUrl = "https://uknight-backend-536429702801.us-central1.run.app"
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+                    // const apiUrl = "https://uknight-backend-536429702801.us-central1.run.app"
                     const res = await fetch(`${apiUrl}/api/users/login`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -44,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             email: firebaseUser.email,
                             displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "Student",
                             profilePicture: firebaseUser.photoURL,
-                            verified: false, // Don't auto-set verified here; let the OTP flow handle it
+                            verified: false,
                         }),
                     })
 
@@ -56,7 +79,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     // Backend sync is best-effort
                 }
             } else {
-                setIsVerified(false)
+                // Before giving up, check if there's a custom local user
+                const customUserStr = localStorage.getItem("uknight_custom_user")
+                if (customUserStr) {
+                    try {
+                        const customUser = JSON.parse(customUserStr)
+                        setUser(customUser)
+                        setIsVerified(localStorage.getItem("uknight_custom_verified") === "true")
+                    } catch {
+                        setIsVerified(false)
+                    }
+                } else {
+                    setIsVerified(false)
+                }
             }
 
             setLoading(false)
@@ -78,12 +113,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signOut = async () => {
         await firebaseSignOut(auth)
+        localStorage.removeItem("uknight_custom_user")
+        localStorage.removeItem("uknight_custom_verified")
+        setUser(null)
         setIsVerified(false)
         router.push("/login")
     }
 
     return (
-        <AuthContext.Provider value={{ user, loading, isVerified, signOut }}>
+        <AuthContext.Provider value={{ user, loading, isVerified, signOut, setCustomLogin }}>
             {!loading && children}
         </AuthContext.Provider>
     )

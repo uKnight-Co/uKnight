@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
+import Image from "next/image"
 import { LiveDemo } from "@/components/marketing/live-demo"
 
 import { Manifesto } from "@/components/marketing/manifesto"
@@ -31,23 +32,24 @@ export default function Home() {
                   <span className="flex h-2 w-2 rounded-full bg-primary mr-2 animate-pulse"></span>
                   Now live!
                 </div>
-                <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-                  The Connective Layer for <br />
-                  <span className="bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent font-[family-name:var(--font-bangers)] tracking-wider">
+                <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl lg:text-5xl flex flex-col gap-1 sm:gap-2">
+                  <span className="text-white">The Connective Layer for</span>
+                  <span className="bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent font-[family-name:var(--font-bangers)] tracking-wider text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight">
                     University Students
                   </span>
                 </h1>
                 <p className="mt-6 text-lg text-muted-foreground sm:text-xl leading-relaxed">
-                  Experience the <span className="text-amber-500 font-medium">spontaneity</span> of meeting new people, exclusively with your <span className="text-amber-500 font-medium">verified peers</span>. No bots, no strangers, just students.
+                  Experience the <span className="text-amber-500 font-medium">spontaneity</span> of meeting new people, exclusively with your <span className="text-amber-500 font-medium">verified peers</span>. Spill the tea, no bots, no randoms—vibe check passed.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 w-full">
-                  <Link href="/lobby" className="w-full sm:w-auto">
-                    <Button size="lg" className="h-12 w-full px-8 text-base shadow-lg shadow-primary/25 hover:scale-105 transition-transform">
-                      Connect with .edu Email
-                    </Button>
+                  <Link href="/lobby" className="w-full sm:w-auto overflow-visible group">
+                    <div className="relative isolate px-6 py-2.5 sm:py-3 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl border-[3px] border-black shadow-[4px_4px_0px_#000000] group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:shadow-[2px_2px_0px_#000000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer overflow-hidden flex items-center justify-center">
+                      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,black_2px,transparent_2px)] bg-size-[12px_12px] z-[-1] pointer-events-none mix-blend-overlay"></div>
+                      <Image src="/UKnightText.png" alt="uKnight" width={100} height={30} className="object-contain drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] pb-0.5" />
+                    </div>
                   </Link>
                   <Button variant="outline" size="lg" className="h-12 w-full sm:w-auto px-8 text-base hover:bg-muted/50" onClick={() => document.getElementById("how-it-works-section")?.scrollIntoView({ behavior: "smooth" })}>
-                    See how it works
+                    See The Magic!
                   </Button>
                 </div>
               </motion.div>

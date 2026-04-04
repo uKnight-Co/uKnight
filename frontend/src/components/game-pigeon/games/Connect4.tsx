@@ -172,7 +172,7 @@ export function Connect4({ onGameEnd, myRole, sendMove, lastOpponentMove }: Game
       )}
 
       {/* Scoreboard */}
-      <div className="flex justify-around items-center bg-white/5 rounded-2xl py-3 border border-white/5">
+      <div className="flex justify-around items-center bg-slate-800/75 rounded-2xl py-3 border border-slate-700">
         <div className="text-center">
           <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">You {myPlayer === 1 ? "🔴" : "🟡"}</p>
           <p className={`text-2xl font-black ${isMyTurn && !gameOver ? (myPlayer === 1 ? "text-red-400" : "text-yellow-400") : "text-white"}`}>
@@ -221,7 +221,7 @@ export function Connect4({ onGameEnd, myRole, sendMove, lastOpponentMove }: Game
       </AnimatePresence>
 
       {/* Board */}
-      <div className="bg-blue-900/40 rounded-2xl p-2 border border-blue-500/20 overflow-hidden">
+      <div className="bg-blue-950/75 rounded-2xl p-2 border border-blue-800 overflow-hidden">
         {/* Column hover buttons */}
         <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
           {Array.from({ length: COLS }, (_, c) => (
@@ -252,8 +252,10 @@ export function Connect4({ onGameEnd, myRole, sendMove, lastOpponentMove }: Game
             {row.map((cell, c) => (
               <motion.div
                 key={c}
-                onClick={() => handleDrop(c)}
-                className={`aspect-square rounded-full border cursor-pointer transition-all ${
+                onClick={() => (isNetworked && !isMyTurn) || gameOver || !!winCells ? undefined : handleDrop(c)}
+                className={`aspect-square rounded-full border transition-all ${
+                  isNetworked && !isMyTurn ? "cursor-not-allowed opacity-80" : !cell && !gameOver && !winCells ? "cursor-pointer" : "cursor-default"
+                } ${
                   isWinCell(r, c)
                     ? "border-white shadow-lg scale-110"
                     : "border-white/10"
@@ -262,7 +264,7 @@ export function Connect4({ onGameEnd, myRole, sendMove, lastOpponentMove }: Game
                     ? "bg-red-500 border-red-400"
                     : cell === 2
                     ? "bg-yellow-400 border-yellow-300"
-                    : "bg-slate-800/80"
+                    : "bg-slate-900/75"
                 }`}
                 animate={isWinCell(r, c) ? { scale: [1, 1.15, 1], boxShadow: ["0 0 0px rgba(255,255,255,0)", "0 0 14px rgba(255,255,255,0.7)", "0 0 8px rgba(255,255,255,0.4)"] } : {}}
                 transition={{ duration: 0.6, repeat: isWinCell(r, c) ? Infinity : 0 }}
@@ -286,3 +288,5 @@ export function Connect4({ onGameEnd, myRole, sendMove, lastOpponentMove }: Game
     </div>
   );
 }
+
+

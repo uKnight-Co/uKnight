@@ -24,6 +24,12 @@ public class User {
     @Column(name = "display_name", length = 100)
     private String displayName;
 
+    @Column(name = "username", unique = true, length = 50)
+    private String username;
+
+    @Column(name = "password")
+    private String password;
+
     @Column(length = 20)
     private String gender;
 

@@ -125,7 +125,7 @@ export function MemoryMatch({ onGameEnd, myRole, sendMove, lastOpponentMove }: G
         </div>
       )}
 
-      <div className="flex justify-around items-center bg-white/5 rounded-2xl py-3 border border-amber-500/10">
+      <div className="flex justify-around items-center bg-slate-800/75 rounded-2xl py-3 border border-slate-700">
         <div className="text-center">
           <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Your flips</p>
           <p className="text-2xl font-black text-amber-400">{flips}</p>
@@ -141,7 +141,7 @@ export function MemoryMatch({ onGameEnd, myRole, sendMove, lastOpponentMove }: G
       </div>
 
       {!done ? (
-        <div className="text-center text-sm font-bold py-1.5 rounded-xl text-amber-400 bg-amber-500/10 border border-amber-500/20">
+        <div className="text-center text-sm font-bold py-1.5 rounded-xl text-amber-400 bg-amber-900/75 border border-amber-700">
           Flip cards — match all {TOTAL_PAIRS} pairs! Fewest flips wins.
         </div>
       ) : !isNetworked || opponentFlips !== null ? null : (
@@ -156,14 +156,14 @@ export function MemoryMatch({ onGameEnd, myRole, sendMove, lastOpponentMove }: G
             whileHover={!card.flipped && !card.matched && !isChecking && !done ? { scale: 1.05 } : {}}
             whileTap={!card.flipped && !card.matched && !isChecking && !done ? { scale: 0.95 } : {}}
             className={`aspect-square rounded-xl flex items-center justify-center text-2xl border transition-all ${
-              card.matched ? "bg-amber-500/20 border-amber-500/40"
-              : card.flipped ? "bg-white/15 border-white/30"
-              : "bg-white/5 border-white/10 cursor-pointer hover:bg-amber-500/10 hover:border-amber-500/20"
+              card.matched ? "bg-amber-700/75 border-amber-500"
+              : card.flipped ? "bg-slate-600/75 border-slate-400"
+              : "bg-slate-800/75 border-slate-600 cursor-pointer hover:bg-amber-900/75 hover:border-amber-600"
             }`}>
             <AnimatePresence mode="wait">
               {card.flipped || card.matched
                 ? <motion.span key="face" initial={{ rotateY: 90, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} exit={{ rotateY: 90, opacity: 0 }}>{card.emoji}</motion.span>
-                : <motion.span key="back" className="text-white/20 text-lg">?</motion.span>}
+                : <motion.span key="back" className="text-white/60 text-lg font-bold">?</motion.span>}
             </AnimatePresence>
           </motion.button>
         ))}
@@ -190,3 +190,5 @@ export function MemoryMatch({ onGameEnd, myRole, sendMove, lastOpponentMove }: G
     </div>
   );
 }
+
+
