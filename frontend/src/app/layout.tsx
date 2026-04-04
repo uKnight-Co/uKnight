@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Bangers, Mountains_of_Christmas } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Navbar } from "@/components/navbar";
@@ -17,6 +17,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const bangers = Bangers({
+  weight: "400",
+  variable: "--font-bangers",
+  subsets: ["latin"],
+});
+
+const mountainsOfChristmas = Mountains_of_Christmas({
+  weight: ["400", "700"],
+  variable: "--font-mountains",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "uKnight | Connect with Students",
   description: "The exclusive video chat platform for university students.",
@@ -30,7 +42,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${bangers.variable} ${mountainsOfChristmas.variable} font-sans antialiased`}
       >
         <ThemeProvider
           attribute="class"

@@ -26,6 +26,7 @@ export function Navbar() {
                         <span className="hidden font-bold sm:inline-block">uKnight</span>
                     </Link>
                 </div>
+                <div id="navbar-center-portal" className="hidden md:flex flex-1 justify-center px-4" />
                 <nav className="ml-auto flex items-center space-x-4">
                     {user ? (
                         <DropdownMenu>

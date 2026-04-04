@@ -14,6 +14,53 @@ import { Input } from "@/components/ui/input"
 import { GamePickerModal, GAMES } from "@/components/game-pigeon/GamePickerModal"
 import { GameOverlay } from "@/components/game-pigeon/GameOverlay"
 import type { GameResult } from "@/components/game-pigeon/types"
+import { RefreshCw } from "lucide-react"
+import { createPortal } from "react-dom"
+
+const POP_CULTURE = [
+    "Are you tapping into the 'analog' living trend or are you still hopelessly addicted to screen time?",
+    "If you were trapped in the Project Hail Mary spaceship with Ryan Gosling, what's the first thing you're saying to him?",
+    "Which 'Older Brother Core' 2000s trend needs to absolutely stay dead and never come back?",
+    "Be honest: are we hyped for The Super Mario Galaxy movie or are we officially tired of video game adaptations?",
+    "If Zendaya and Robert Pattinson starred in a movie about your life, what would 'The Drama' actually be about?",
+    "Who is unequivocally winning the Kendrick Lamar vs. the world beef at this point?",
+    "What's your toxic TikTok trait: doing the 'Cartoon Chase' trend or pretending you don't scroll for 6 hours a day?",
+    "If you had to survive a '28 Years Later' zombie outbreak using only items from your latest Amazon order, how cooked are you?"
+];
+
+const FUNNY_ICEBREAKERS = [
+    "If animals could talk, which species would definitely be the rudest?",
+    "What is the most chaotic thing you would do if you could be invisible for a day?",
+    "Would you rather fight one horse-sized duck or a hundred duck-sized horses?",
+    "If your FBI agent was watching your search history, what would they think is wrong with you?",
+    "What is a conspiracy theory that you secretly 100% believe is true?"
+];
+
+const JOKES = [
+    "Why don't skeletons fight each other? Because they don't have the guts.",
+    "What do you call a fake noodle? An impasta.",
+    "Why did the scarecrow win an award? Because he was outstanding in his field.",
+    "What do you call a fish wearing a bowtie? Sofishticated.",
+    "I told my Wi-Fi I loved it... it said we had a connection."
+];
+
+function TypewriterText({ text, speed = 35, className }: { text: string, speed?: number, className?: string }) {
+    const [displayedText, setDisplayedText] = useState("");
+    
+    useEffect(() => {
+        setDisplayedText("");
+        let i = 0;
+        const interval = setInterval(() => {
+            setDisplayedText(text.slice(0, i + 1));
+            i++;
+            if (i >= text.length) clearInterval(interval);
+        }, speed);
+        
+        return () => clearInterval(interval);
+    }, [text, speed]);
+    
+    return <span className={className}>{displayedText}<span className="animate-pulse">_</span></span>;
+}
 
 type ChatMessage = {
     id: string;
@@ -171,6 +218,18 @@ export default function LobbyPage() {
     const [gamePigeonLastMove, setGamePigeonLastMove] = useState<Record<string, unknown> | null>(null)
     const [gamePigeonInvite, setGamePigeonInvite] = useState<{ senderId: string; matchId: string; gameType: string } | null>(null)
 
+    // Icebreaker
+    const [iceType, setIceType] = useState<"pop" | "funny" | "joke">("funny")
+    const [iceText, setIceText] = useState(FUNNY_ICEBREAKERS[0])
+    const [portalNode, setPortalNode] = useState<Element | null>(null)
+
+    const setRandomIcebreaker = (type: "pop" | "funny" | "joke") => {
+        setIceType(type);
+        if (type === "pop") setIceText(POP_CULTURE[Math.floor(Math.random() * POP_CULTURE.length)]);
+        if (type === "funny") setIceText(FUNNY_ICEBREAKERS[Math.floor(Math.random() * FUNNY_ICEBREAKERS.length)]);
+        if (type === "joke") setIceText(JOKES[Math.floor(Math.random() * JOKES.length)]);
+    }
+
     // --- Mutable refs for latest callbacks and state ---
     const localStreamRef = useRef<MediaStream | null>(null)
     const handleMatchFoundRef = useRef<((data: MatchData, stream: MediaStream) => Promise<void>) | null>(null)
@@ -181,6 +240,10 @@ export default function LobbyPage() {
         handleMatchFoundRef.current = handleMatchFound;
         handleSignalRef.current = handleSignal;
     })
+
+    useEffect(() => {
+        setPortalNode(document.getElementById("navbar-center-portal"));
+    }, []);
 
     const log = (msg: string) => {
         console.log(msg)
@@ -426,6 +489,9 @@ export default function LobbyPage() {
         setRemoteVideoOn(true);
 
         createPeerConnection(data.peerId, stream);
+
+        // Randomize icebreaker on new match
+        setRandomIcebreaker("funny");
 
         if (data.initiator) {
             try {
@@ -768,9 +834,37 @@ export default function LobbyPage() {
 
                 {/* Remote Muted Icon */}
                 {currentPeerId && !remoteMicOn && remoteVideoOn && (
-                    <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 bg-black/60 px-4 py-2 rounded-full backdrop-blur-md flex items-center gap-2 shadow-xl border border-white/10">
+                    <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 bg-black/60 px-4 py-2 rounded-full backdrop-blur-md flex items-center gap-2 shadow-xl border border-white/10 mt-16 text-white text-sm font-medium">
                         <MicOff className="h-5 w-5 text-red-500" />
-                        <span className="text-white text-sm font-medium">Partner Muted</span>
+                        <span>Partner Muted</span>
+                    </div>
+                )}
+
+                {/* Icebreaker Banner */}
+                {currentPeerId && portalNode && createPortal(
+                    <div className="w-full max-w-lg lg:max-w-xl bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-lg rounded-full flex flex-row items-center gap-2 px-2 py-1 animate-in slide-in-from-top-2">
+                        <div className="flex flex-row items-center gap-1.5 border-r border-white/10 pr-2">
+                           <button onClick={() => setRandomIcebreaker("pop")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Current Events">🔥</button>
+                           <button onClick={() => setRandomIcebreaker("funny")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-fuchsia-500/20 hover:bg-fuchsia-500/40 border border-fuchsia-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Wild Icebreaker">🧊</button>
+                           <button onClick={() => setRandomIcebreaker("joke")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Joke">😂</button>
+                        </div>
+                        <div className="flex-1 flex items-center px-1">
+                            <TypewriterText text={iceText} speed={30} className={`text-xs md:text-sm lg:text-[15px] font-bold leading-snug tracking-wide ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
+                        </div>
+                    </div>,
+                    portalNode
+                )}
+                {/* Fallback pattern if portal doesn't exist */}
+                {currentPeerId && !portalNode && (
+                    <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 w-[90%] md:w-auto max-w-lg bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-lg rounded-full flex flex-row items-center gap-2 px-2 py-1.5">
+                        <div className="flex flex-row items-center gap-1.5 border-r border-white/10 pr-2">
+                           <button onClick={() => setRandomIcebreaker("pop")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Current Events">🔥</button>
+                           <button onClick={() => setRandomIcebreaker("funny")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-fuchsia-500/20 hover:bg-fuchsia-500/40 border border-fuchsia-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Wild Icebreaker">🧊</button>
+                           <button onClick={() => setRandomIcebreaker("joke")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm" title="Joke">😂</button>
+                        </div>
+                        <div className="flex-1 flex items-center px-1">
+                            <TypewriterText text={iceText} speed={30} className={`text-xs md:text-sm font-bold leading-snug tracking-wide max-w-[280px] sm:max-w-md wrap-break-word ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
+                        </div>
                     </div>
                 )}
 

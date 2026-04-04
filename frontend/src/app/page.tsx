@@ -33,7 +33,7 @@ export default function Home() {
                 </div>
                 <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
                   The Connective Layer for <br />
-                  <span className="bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent font-[family-name:var(--font-bangers)] tracking-wider">
                     University Students
                   </span>
                 </h1>
@@ -46,7 +46,7 @@ export default function Home() {
                       Connect with .edu Email
                     </Button>
                   </Link>
-                  <Button variant="outline" size="lg" className="h-12 w-full sm:w-auto px-8 text-base hover:bg-muted/50">
+                  <Button variant="outline" size="lg" className="h-12 w-full sm:w-auto px-8 text-base hover:bg-muted/50" onClick={() => document.getElementById("how-it-works-section")?.scrollIntoView({ behavior: "smooth" })}>
                     See how it works
                   </Button>
                 </div>
@@ -91,7 +91,9 @@ export default function Home() {
         {/* </section> */}
 
         {/* Manifesto Section */}
-        <Manifesto />
+        <div id="how-it-works-section">
+          <Manifesto />
+        </div>
 
         {/* Feature Scroll Section */}
         <FeatureScroll />

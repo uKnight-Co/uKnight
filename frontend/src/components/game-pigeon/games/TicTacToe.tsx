@@ -121,7 +121,7 @@ export function TicTacToe({ onGameEnd, myRole, sendMove, lastOpponentMove }: Gam
         </div>
         <div className="text-center">
           <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Stranger ({opponentSymbol})</p>
-          <p className={`text-2xl font-black ${!isMyTurn && !gameOver ? "text-rose-400" : "text-white"}`}>
+          <p className={`text-2xl font-black ${!isMyTurn && !gameOver ? "text-cyan-400" : "text-white"}`}>
             {mySymbol === "X" ? scores.O : scores.X}
           </p>
         </div>
@@ -131,12 +131,12 @@ export function TicTacToe({ onGameEnd, myRole, sendMove, lastOpponentMove }: Gam
       <AnimatePresence mode="wait">
         {!gameOver ? (
           <motion.div key={turn} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
-            className={`text-center text-sm font-bold py-1.5 rounded-xl ${isMyTurn ? "text-amber-400 bg-amber-500/10 border border-amber-500/20" : "text-rose-400 bg-rose-500/10"}`}>
+            className={`text-center text-sm font-bold py-1.5 rounded-xl ${isMyTurn ? "text-amber-400 bg-amber-500/10 border border-amber-500/20" : "text-cyan-400 bg-cyan-500/10"}`}>
             {waitingForOpponent ? "Waiting for opponent..." : `${currentPlayer}'s Turn`}
           </motion.div>
         ) : (
           <motion.div key="result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-            className={`text-center text-sm font-bold py-1.5 rounded-xl ${isDraw ? "text-amber-400 bg-amber-500/10" : youWon ? "text-amber-400 bg-amber-500/10 border border-amber-500/30" : "text-rose-400 bg-rose-500/10"}`}>
+            className={`text-center text-sm font-bold py-1.5 rounded-xl ${isDraw ? "text-amber-400 bg-amber-500/10" : youWon ? "text-amber-400 bg-amber-500/10 border border-amber-500/30" : "text-cyan-400 bg-cyan-500/10"}`}>
             {isDraw ? "Draw! 🤝" : youWon ? "You win this round! 🎉" : "Stranger wins this round!"}
           </motion.div>
         )}
@@ -156,7 +156,7 @@ export function TicTacToe({ onGameEnd, myRole, sendMove, lastOpponentMove }: Gam
             <AnimatePresence>
               {cell && (
                 <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 400, damping: 17 }}>
-                  {cell === "X" ? <X className="w-8 h-8 text-amber-400 stroke-3" /> : <Circle className="w-8 h-8 text-rose-400 stroke-3" />}
+                  {cell === "X" ? <X className="w-8 h-8 text-amber-400 stroke-3" /> : <Circle className="w-8 h-8 text-cyan-400 stroke-3" />}
                 </motion.div>
               )}
             </AnimatePresence>

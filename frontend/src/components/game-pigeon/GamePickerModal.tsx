@@ -86,6 +86,14 @@ interface GamePickerModalProps {
   onStartModular: (gameIds: string[]) => void;
 }
 
+const COMIC_STYLES = [
+  { shape: "rounded-[24px_8px_24px_8px]", bg: "bg-gradient-to-br from-blue-500 to-indigo-600", transform: "hover:rotate-2 hover:scale-[1.05]" },
+  { shape: "rounded-[8px_24px_8px_24px]", bg: "bg-gradient-to-br from-amber-400 to-orange-500", transform: "hover:-rotate-2 hover:scale-[1.05]" },
+  { shape: "rounded-[24px_24px_8px_8px]", bg: "bg-gradient-to-br from-emerald-400 to-green-600", transform: "hover:rotate-1 hover:scale-[1.05]" },
+  { shape: "rounded-[8px_8px_24px_24px]", bg: "bg-gradient-to-br from-cyan-400 to-blue-500", transform: "hover:-rotate-1 hover:scale-[1.05]" },
+  { shape: "rounded-[16px_32px_16px_32px]", bg: "bg-gradient-to-br from-violet-500 to-purple-600", transform: "hover:rotate-3 hover:scale-[1.05]" },
+];
+
 export function GamePickerModal({ isOpen, onClose, onStartGame, onStartModular }: GamePickerModalProps) {
   const [tab, setTab] = useState<"single" | "modular">("single");
   const [queue, setQueue] = useState<string[]>([]);
@@ -112,36 +120,38 @@ export function GamePickerModal({ isOpen, onClose, onStartGame, onStartModular }
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 60, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300, damping: 28 }}
-            className="w-full md:max-w-md bg-slate-900 border border-white/10 rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
+            className="w-full md:max-w-md bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 border-4 border-black rounded-t-[32px] md:rounded-[32px] overflow-hidden shadow-[8px_8px_0_0_rgba(0,0,0,0.5)] flex flex-col max-h-[85vh] font-[family-name:var(--font-mountains)]"
           >
+            {/* Comic dot halftone overlay for modal */}
+            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,black_2px,transparent_2px)] [background-size:12px_12px] z-0 pointer-events-none mix-blend-overlay"></div>
             {/* Handle */}
             <div className="flex justify-center pt-3 md:hidden">
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+            <div className="flex items-center justify-between px-5 py-4 border-b-4 border-black/50 bg-black/20 relative z-10">
               <div className="flex items-center gap-2.5">
-                <div className="bg-amber-500/20 p-2 rounded-xl">
-                  <Gamepad2 className="w-5 h-5 text-amber-400" />
+                <div className="bg-amber-400 p-2 rounded-xl border-2 border-black transform -rotate-3 shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                  <Gamepad2 className="w-6 h-6 text-black" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-white leading-tight">UKnight Clubhouse</h2>
-                  <p className="text-[11px] text-white/40">Challenge your match partner</p>
+                  <h2 className="text-2xl font-bold text-white leading-none tracking-wider text-shadow-sm">UKnight Clubhouse</h2>
+                  <p className="text-sm text-white/80 font-bold">Challenge your match partner!</p>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-white/10 text-white/40 hover:text-white h-8 w-8">
-                <X className="w-4 h-4" />
+              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-white/20 text-white/70 hover:text-white h-10 w-10 border-2 border-transparent hover:border-white/50 transition-all">
+                <X className="w-6 h-6" />
               </Button>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 px-5 pt-4 pb-2">
+            <div className="flex gap-2 px-5 pt-4 pb-2 relative z-10">
               {(["single", "modular"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${tab === t ? "bg-amber-500 text-white" : "bg-white/5 text-white/50 hover:bg-white/10"}`}
+                  className={`flex-1 py-2.5 rounded-xl text-lg font-bold transition-all border-2 ${tab === t ? "bg-amber-400 text-black border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] transform -translate-y-1" : "bg-black/30 border-transparent text-white/70 hover:bg-black/50"}`}
                 >
                   {t === "single" ? "🎮 Single Game" : "🏆 Tournament Mode"}
                 </button>
@@ -149,24 +159,27 @@ export function GamePickerModal({ isOpen, onClose, onStartGame, onStartModular }
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <div className="flex-1 overflow-y-auto px-4 pb-4 relative z-10">
               <AnimatePresence mode="wait">
                 {tab === "single" ? (
                   <motion.div key="single" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="grid grid-cols-2 gap-2.5 pt-2">
-                    {GAMES.map((game) => (
+                    {GAMES.map((game, i) => {
+                      const style = COMIC_STYLES[i % COMIC_STYLES.length];
+                      return (
                       <div key={game.id} className="relative group">
                         <motion.button
-                          whileHover={{ scale: 1.03, y: -2 }}
-                          whileTap={{ scale: 0.97 }}
+                          whileTap={{ scale: 0.92 }}
                           onClick={() => { onStartGame(game.id); onClose(); }}
-                          className="w-full flex flex-col items-start gap-2 p-3.5 rounded-2xl bg-white/5 border border-white/8 hover:border-amber-500/40 hover:bg-amber-500/10 transition-all text-left"
+                          className={`w-full flex flex-col items-start gap-2 p-3.5 ${style.shape} ${style.bg} border-4 border-white/90 shadow-[4px_4px_0_0_rgba(255,255,255,0.8)] ${style.transform} transition-all text-left overflow-hidden relative z-10`}
                         >
-                          <span className="text-3xl">{game.emoji}</span>
-                          <div>
-                            <p className="text-sm font-bold text-white leading-tight">{game.name}</p>
-                            <p className="text-[10px] text-white/40 mt-0.5 leading-tight">{game.tagline}</p>
+                          <span className="text-4xl drop-shadow-md relative z-10">{game.emoji}</span>
+                          <div className="relative z-10">
+                            <p className="text-xl font-[family-name:var(--font-mountains)] font-bold text-white tracking-wide text-shadow-sm">{game.name}</p>
+                            <p className="text-[11px] text-white/90 mt-0.5 leading-tight font-medium bg-black/20 px-2 py-0.5 rounded-full inline-block backdrop-blur-sm">{game.tagline}</p>
                           </div>
-                          <ChevronRight className="w-3.5 h-3.5 text-white/20 self-end" />
+                          
+                          {/* Comic dot halftone overlay */}
+                          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle,black_2px,transparent_2px)] [background-size:8px_8px] z-0 mix-blend-overlay"></div>
                         </motion.button>
 
                         {/* Rules tooltip button */}
@@ -180,29 +193,29 @@ export function GamePickerModal({ isOpen, onClose, onStartGame, onStartModular }
                         <AnimatePresence>
                           {rulesFor === game.id && (
                             <motion.div
-                              initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                              initial={{ opacity: 0, y: -4, scale: 0.95 }}
                               animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                              className="absolute bottom-full left-0 right-0 mb-2 z-20 bg-slate-800 border border-white/15 rounded-2xl p-3 shadow-xl"
+                              exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                              className="absolute top-full left-0 right-0 mt-2 z-20 bg-amber-200 border-2 border-black rounded-[12px_24px_12px_24px] p-3 shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <p className="text-[11px] text-white/80 leading-relaxed">{game.rules}</p>
-                              <div className="absolute bottom-[-6px] left-4 w-3 h-3 bg-slate-800 border-r border-b border-white/15 rotate-45" />
+                              <div className="absolute top-[-8px] left-4 w-4 h-4 bg-amber-200 border-l-2 border-t-2 border-black rotate-45" />
+                              <p className="text-[12px] font-bold text-black leading-relaxed font-[family-name:var(--font-mountains)]">{game.rules}</p>
                             </motion.div>
                           )}
                         </AnimatePresence>
                       </div>
-                    ))}
+                    )})}
                   </motion.div>
                 ) : (
                   <motion.div key="modular" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="flex flex-col gap-3 pt-2">
-                    <p className="text-xs text-white/50 text-center">Select games to add to your tournament playlist. They&apos;ll play in order!</p>
+                    <p className="text-lg text-white/80 font-bold text-center">Select games to add to your tournament playlist. They'll play in order!</p>
 
                     {/* Queue */}
                     {queue.length > 0 && (
-                      <div className="bg-white/5 rounded-2xl p-3 border border-white/8">
-                        <p className="text-[10px] uppercase tracking-widest text-white/40 mb-2">Your Playlist ({queue.length} games)</p>
-                        <div className="flex flex-wrap gap-1.5">
+                      <div className="bg-black/30 rounded-[20px] p-4 border-2 border-black shadow-inner">
+                        <p className="text-sm uppercase tracking-widest text-amber-300 font-bold mb-3">Your Playlist ({queue.length} games)</p>
+                        <div className="flex flex-wrap gap-2">
                           {queue.map((id, i) => {
                             const g = GAMES.find((g) => g.id === id)!;
                             return (
@@ -210,12 +223,12 @@ export function GamePickerModal({ isOpen, onClose, onStartGame, onStartModular }
                                 key={id}
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs text-amber-300 font-medium"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 border-2 border-black rounded-full text-sm text-black font-bold shadow-[2px_2px_0_0_rgba(0,0,0,1)] transform hover:-rotate-2 transition-transform"
                               >
-                                <span className="text-[10px] text-white/40">{i + 1}.</span>
+                                <span className="opacity-70">{i + 1}.</span>
                                 {g.emoji} {g.name}
-                                <button onClick={() => removeFromQueue(id)} className="ml-1 text-amber-400/60 hover:text-red-400 transition-colors">
-                                  <X className="w-2.5 h-2.5" />
+                                <button onClick={() => removeFromQueue(id)} className="ml-1 text-black/60 hover:text-red-600 transition-colors bg-white/30 rounded-full p-0.5">
+                                  <X className="w-3.5 h-3.5" />
                                 </button>
                               </motion.div>
                             );
@@ -226,26 +239,33 @@ export function GamePickerModal({ isOpen, onClose, onStartGame, onStartModular }
 
                     {/* Game selector */}
                     <div className="grid grid-cols-2 gap-2">
-                      {GAMES.map((game) => {
+                      {GAMES.map((game, i) => {
                         const inQueue = queue.includes(game.id);
+                        const style = COMIC_STYLES[i % COMIC_STYLES.length];
                         return (
                           <motion.button
                             key={game.id}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.97 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.92 }}
                             onClick={() => toggleQueue(game.id)}
-                            className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${
-                              inQueue ? "bg-amber-500/20 border-amber-500/50 text-amber-300" : "bg-white/5 border-white/8 text-white/70 hover:border-white/20"
+                            className={`flex items-center gap-2 p-2.5 border-2 transition-all relative overflow-hidden ${
+                              inQueue 
+                                ? `${style.shape} ${style.bg} border-white shadow-[2px_2px_0_0_rgba(255,255,255,0.7)] text-white` 
+                                : `rounded-xl bg-white/5 border-white/10 text-white/70 hover:border-white/30 grayscale hover:grayscale-0`
                             }`}
                           >
-                            <span className="text-xl">{game.emoji}</span>
-                            <p className="text-xs font-semibold flex-1 leading-tight">{game.name}</p>
+                            <span className="text-2xl relative z-10">{game.emoji}</span>
+                            <p className="text-sm font-[family-name:var(--font-mountains)] font-bold flex-1 leading-tight relative z-10 tracking-widest">{game.name}</p>
                             {inQueue ? (
-                              <div className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-                                <span className="text-[8px] text-white font-black">{queue.indexOf(game.id) + 1}</span>
+                              <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center flex-shrink-0 relative z-10">
+                                <span className="text-[10px] text-black font-black">{queue.indexOf(game.id) + 1}</span>
                               </div>
                             ) : (
-                              <Plus className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
+                              <Plus className="w-4 h-4 text-white/50 flex-shrink-0" />
+                            )}
+                            
+                            {inQueue && (
+                              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle,black_2px,transparent_2px)] [background-size:8px_8px] z-0 mix-blend-overlay"></div>
                             )}
                           </motion.button>
                         );
@@ -253,10 +273,10 @@ export function GamePickerModal({ isOpen, onClose, onStartGame, onStartModular }
                     </div>
 
                     {queue.length >= 2 && (
-                      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-2">
                         <Button
                           onClick={() => { onStartModular(queue); onClose(); }}
-                          className="w-full bg-linear-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-bold rounded-2xl py-5 text-base shadow-lg shadow-amber-500/25"
+                          className="w-full bg-linear-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-black font-black font-[family-name:var(--font-mountains)] border-4 border-black rounded-[24px_8px_24px_8px] py-6 text-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)] transition-all"
                         >
                           🏆 Start Tournament ({queue.length} games)
                         </Button>
@@ -264,7 +284,7 @@ export function GamePickerModal({ isOpen, onClose, onStartGame, onStartModular }
                     )}
 
                     {queue.length < 2 && (
-                      <p className="text-center text-xs text-white/30">Select at least 2 games to start a tournament</p>
+                      <p className="text-center text-[15px] font-bold text-white/70 mt-2">Select at least 2 games to start a tournament</p>
                     )}
                   </motion.div>
                 )}
