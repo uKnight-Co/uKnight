@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, SkipForward, Gamepad2, Wand2, Maximize2, AlertTriangle } from "lucide-react"
+import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, SkipForward, Gamepad2, Wand2, Maximize2, AlertTriangle, Expand, Shrink } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MediaDeviceSelector } from "@/components/media-device-selector"
 import { useMediaStore } from "@/store/media-store"
@@ -232,6 +232,27 @@ export default function LobbyPage() {
     const [isLocalMaximized, setIsLocalMaximized] = useState(false)
     const { videoDeviceId, audioDeviceId } = useMediaStore()
     const { user: firebaseUser } = useAuth()
+    const [isMobileFullscreen, setIsMobileFullscreen] = useState(false)
+
+    const toggleMobileFullscreen = useCallback(() => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {
+                // fallback: just hide browser chrome via state
+            })
+            setIsMobileFullscreen(true)
+        } else {
+            document.exitFullscreen().catch(() => {})
+            setIsMobileFullscreen(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        const onFsChange = () => {
+            setIsMobileFullscreen(!!document.fullscreenElement)
+        }
+        document.addEventListener('fullscreenchange', onFsChange)
+        return () => document.removeEventListener('fullscreenchange', onFsChange)
+    }, [])
 
     // Game Pigeon state
     const [isGamePickerOpen, setIsGamePickerOpen] = useState(false)
@@ -975,7 +996,7 @@ export default function LobbyPage() {
             </motion.div>
 
             {/* Controls Bar */}
-            <div className="absolute bottom-8 left-0 right-0 flex flex-wrap justify-center items-center gap-3 px-4 z-30">
+            <div className="absolute bottom-4 md:bottom-8 left-0 right-0 flex flex-wrap justify-center items-center gap-2 md:gap-3 px-2 md:px-4 z-30">
                 <Button
                     variant="ghost"
                     size="icon"
@@ -1007,11 +1028,22 @@ export default function LobbyPage() {
                 </Button>
 
                 <Button
-                    className="h-12 md:h-14 px-6 md:px-8 shrink-0 rounded-full bg-white text-black hover:bg-white/90 font-medium shadow-xl shadow-white/10 transition-all active:scale-95"
+                    className="h-12 md:h-14 px-5 md:px-8 shrink-0 rounded-full bg-white text-black hover:bg-white/90 font-medium shadow-xl shadow-white/10 transition-all active:scale-95"
                     onClick={handleNext}
                 >
-                    <SkipForward className="h-4 w-4 md:h-5 md:w-5 mr-2" />
+                    <SkipForward className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
                     Next
+                </Button>
+
+                {/* Mobile-only fullscreen toggle */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-10 w-10 md:hidden shrink-0 rounded-full ${glassButton}`}
+                    onClick={toggleMobileFullscreen}
+                    title={isMobileFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                >
+                    {isMobileFullscreen ? <Shrink className="h-4 w-4" /> : <Expand className="h-4 w-4" />}
                 </Button>
 
                 <div className="relative">
@@ -1029,7 +1061,7 @@ export default function LobbyPage() {
                                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl border border-white/20 p-3 rounded-2xl shadow-2xl grid grid-cols-2 md:grid-cols-3 gap-2 min-w-[280px] md:min-w-[420px] z-50 max-h-[60vh] overflow-y-auto"
+                                className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl border border-white/20 p-3 rounded-2xl shadow-2xl grid grid-cols-2 md:grid-cols-3 gap-2 w-[min(420px,90vw)] z-50 max-h-[60vh] overflow-y-auto"
                             >
                                 {VIDEO_FILTERS.map((f) => (
                                     <button
@@ -1099,7 +1131,7 @@ export default function LobbyPage() {
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: "100%", opacity: 0 }}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        className="absolute top-14 right-0 bottom-0 w-full md:w-96 bg-black/40 backdrop-blur-xl border-l border-white/10 z-40 flex flex-col shadow-2xl"
+                        className="absolute top-14 right-0 bottom-[72px] md:bottom-0 w-full md:w-96 bg-black/40 backdrop-blur-xl border-l border-white/10 z-40 flex flex-col shadow-2xl"
                     >
                         <div className="p-4 border-b border-white/10 flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -1188,7 +1220,7 @@ export default function LobbyPage() {
 
             {/* Game Pigeon Incoming Invite Banner */}
             {gamePigeonInvite && (
-                <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 border border-amber-500/40 rounded-2xl px-5 py-4 shadow-2xl shadow-amber-500/20 flex items-center gap-4 backdrop-blur-xl min-w-[280px]">
+                <div className="absolute bottom-[88px] md:bottom-32 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 border border-amber-500/40 rounded-2xl px-4 md:px-5 py-3 md:py-4 shadow-2xl shadow-amber-500/20 flex items-center gap-3 md:gap-4 backdrop-blur-xl w-[min(340px,calc(100vw-1.5rem))]">
                     <span className="text-2xl">{
                         gamePigeonInvite.gameType.startsWith('tournament:') 
                             ? '🏆' 

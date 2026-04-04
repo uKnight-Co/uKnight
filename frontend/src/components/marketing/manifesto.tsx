@@ -4,10 +4,10 @@ import { motion } from "framer-motion"
 
 export function Manifesto() {
     return (
-        <section className="py-32 md:py-48 bg-background overflow-hidden">
+        <section className="py-20 md:py-48 bg-background overflow-hidden">
             <div className="container mx-auto px-4 md:px-8">
                 <div className="max-w-4xl">
-                    <h2 className="text-5xl md:text-8xl font-black tracking-tighter leading-[0.9]">
+                    <h2 className="text-4xl md:text-8xl font-black tracking-tighter leading-[0.9]">
                         <motion.span
                             initial={{ opacity: 0, y: 50 }}
                             whileInView={{ opacity: 1, y: 0 }}

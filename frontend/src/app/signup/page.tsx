@@ -18,8 +18,7 @@ export default function SignupPage() {
 
     const syncUserAndRedirect = async (user: User) => {
         try {
-            // const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
-            const apiUrl = "https://uknight-backend-536429702801.us-central1.run.app"
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://uknight-backend-536429702801.us-central1.run.app" : "http://localhost:8080")
             const res = await fetch(`${apiUrl}/api/users/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -73,7 +72,7 @@ export default function SignupPage() {
     return (
         <div className="flex min-h-screen w-full lg:grid lg:grid-cols-2">
             <div className="flex items-center justify-center py-12">
-                <div className="mx-auto grid w-[350px] gap-6">
+                <div className="mx-auto grid w-full max-w-[350px] gap-6 px-4">
                     <div className="grid gap-2 text-center">
                         <h1 className="text-3xl font-bold">Sign Up</h1>
                         <p className="text-balance text-muted-foreground">

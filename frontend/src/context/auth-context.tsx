@@ -57,8 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     photoURL: firebaseUser.photoURL,
                 })
                 try {
-                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
-                    // const apiUrl = "https://uknight-backend-536429702801.us-central1.run.app"
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://uknight-backend-536429702801.us-central1.run.app" : "http://localhost:8080")
                     const res = await fetch(`${apiUrl}/api/users/login`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
