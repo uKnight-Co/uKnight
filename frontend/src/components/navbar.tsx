@@ -22,7 +22,8 @@ export function Navbar() {
             <div className="flex h-14 w-full items-center px-4 md:px-8">
                 <div className="mr-4 flex">
                     <Link className="mr-6 flex items-center group" href="/">
-                        <Image src="/UKnightText.png" alt="uKnight Text" width={110} height={32} className="block object-contain pb-0.5 transform transition-transform group-hover:scale-105 group-hover:-rotate-1" />
+                        <img src="/uKnight_Icon.png" alt="uKnight Logo" className="h-[50px] w-[50px] object-contain transform transition-transform group-hover:scale-105" />
+                        <Image src="/UKnightText.png" alt="uKnight Text" width={110} height={32} loading="eager" className="-ml-2 block object-contain pb-0.5 transform transition-transform group-hover:scale-105 group-hover:-rotate-1 w-auto h-auto" />
                     </Link>
                 </div>
                 <div id="navbar-center-portal" className="hidden md:flex flex-1 justify-center px-4" />

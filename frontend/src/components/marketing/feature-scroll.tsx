@@ -45,7 +45,7 @@ export function FeatureScroll() {
     const rotateX = useTransform(scrollYProgress, [0, 0.5, 1], [-6, 0, 6])
 
     return (
-        <section ref={sectionRef} className="py-24 bg-background">
+        <section ref={sectionRef} className="relative py-24 bg-background">
             <div className="container mx-auto px-4 md:px-8">
                 <div className="flex flex-col lg:flex-row gap-12 lg:gap-24">
 

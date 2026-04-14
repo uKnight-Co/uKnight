@@ -14,7 +14,7 @@ import { schools } from "@/data/schools"
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center">
-      <main className="w-full flex-1">
+      <main className="relative w-full flex-1">
         {/* Transformative Hero Section */}
         <section className="relative overflow-hidden border-b bg-background pt-32 pb-16 md:pt-48 md:pb-32">
           {/* Ambient Background */}
@@ -45,10 +45,18 @@ export default function Home() {
                   <Link href="/lobby" className="w-full sm:w-auto overflow-visible group">
                     <div className="relative isolate px-6 py-2.5 sm:py-3 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl border-[3px] border-black shadow-[4px_4px_0px_#000000] group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:shadow-[2px_2px_0px_#000000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer overflow-hidden flex items-center justify-center">
                       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,black_2px,transparent_2px)] bg-size-[12px_12px] z-[-1] pointer-events-none mix-blend-overlay"></div>
-                      <Image src="/UKnightText.png" alt="uKnight" width={100} height={30} className="object-contain drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] pb-0.5" />
+                      <div className="flex items-center gap-0">
+                        <img src="/uKnight_Icon.png" alt="uKnight Logo" className="h-[72px] w-[72px] object-contain drop-shadow-[1px_1px_0px_rgba(0,0,0,1)]" />
+                        <Image src="/UKnightText.png" alt="uKnight" width={100} height={30} loading="eager" className="-ml-2 object-contain drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] pb-0.5 w-auto h-auto" />
+                      </div>
                     </div>
                   </Link>
-                  <Button variant="outline" size="lg" className="h-12 w-full sm:w-auto px-8 text-base hover:bg-muted/50" onClick={() => document.getElementById("how-it-works-section")?.scrollIntoView({ behavior: "smooth" })}>
+                  <Button variant="outline" size="lg" className="h-12 w-full sm:w-auto px-8 text-base hover:bg-muted/50" onClick={() => {
+                    const target = document.getElementById("how-it-works-section")
+                    if (!target) return
+                    const y = target.getBoundingClientRect().top + window.scrollY - 56
+                    window.scrollTo({ top: y, behavior: "smooth" })
+                  }}>
                     See The Magic!
                   </Button>
                 </div>
@@ -93,7 +101,7 @@ export default function Home() {
         {/* </section> */}
 
         {/* Manifesto Section */}
-        <div id="how-it-works-section">
+        <div id="how-it-works-section" className="relative">
           <Manifesto />
         </div>
 
