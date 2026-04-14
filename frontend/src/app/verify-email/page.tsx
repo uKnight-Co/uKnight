@@ -100,20 +100,18 @@ export default function VerifyEmailPage() {
             await addDoc(collection(db, "mail"), {
                 to: schoolEmail,
                 message: {
-                    subject: "uKnight - Verify Your Student Email",
+                    subject: "Your uKnight verification code",
+                    text: `uKnight email verification\n\nYour verification code is: ${otpCode}\n\nThis code expires in 10 minutes.\n\nIf you did not request this code, you can ignore this message.`,
                     html: `
-                        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-                            <div style="text-align: center; margin-bottom: 32px;">
-                                <h1 style="font-size: 28px; font-weight: 800; color: #111; margin: 0;">uKnight</h1>
-                                <p style="color: #666; font-size: 14px; margin-top: 4px;">Student Verification</p>
-                            </div>
-                            <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; padding: 32px; text-align: center; margin-bottom: 24px;">
-                                <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin: 0 0 12px 0;">Your verification code is:</p>
-                                <div style="font-size: 36px; font-weight: 900; letter-spacing: 8px; color: white; font-family: monospace;">${otpCode}</div>
-                            </div>
-                            <p style="color: #666; font-size: 13px; text-align: center; line-height: 1.5;">
-                                This code expires in <strong>10 minutes</strong>. If you didn't request this, you can safely ignore this email.
-                            </p>
+                        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #111;">
+                            <h1 style="font-size: 24px; margin: 0 0 8px 0;">uKnight</h1>
+                            <p style="font-size: 14px; margin: 0 0 20px 0; color: #444;">Email verification</p>
+
+                            <p style="font-size: 15px; margin: 0 0 12px 0;">Your verification code is:</p>
+                            <div style="font-size: 32px; font-weight: 700; letter-spacing: 6px; font-family: monospace; margin: 0 0 20px 0;">${otpCode}</div>
+
+                            <p style="font-size: 14px; margin: 0; color: #444;">This code expires in 10 minutes.</p>
+                            <p style="font-size: 14px; margin: 8px 0 0 0; color: #444;">If you did not request this code, you can ignore this message.</p>
                         </div>
                     `,
                 },
