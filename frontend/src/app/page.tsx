@@ -8,8 +8,6 @@ import { LiveDemo } from "@/components/marketing/live-demo"
 
 import { Manifesto } from "@/components/marketing/manifesto"
 import { FeatureScroll } from "@/components/marketing/feature-scroll"
-import { UKnightPlus } from "@/components/marketing/uknight-plus"
-import { schools } from "@/data/schools"
 
 export default function Home() {
   return (
@@ -46,7 +44,7 @@ export default function Home() {
                     <div className="relative isolate px-6 py-2.5 sm:py-3 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl border-[3px] border-black shadow-[4px_4px_0px_#000000] group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:shadow-[2px_2px_0px_#000000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer overflow-hidden flex items-center justify-center">
                       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,black_2px,transparent_2px)] bg-size-[12px_12px] z-[-1] pointer-events-none mix-blend-overlay"></div>
                       <div className="flex items-center gap-0">
-                        <img src="/uKnight_Icon.png" alt="uKnight Logo" className="h-[72px] w-[72px] object-contain drop-shadow-[1px_1px_0px_rgba(0,0,0,1)]" />
+                        <Image src="/uKnight_Icon.png" alt="uKnight Logo" width={72} height={72} className="h-[72px] w-[72px] object-contain drop-shadow-[1px_1px_0px_rgba(0,0,0,1)]" />
                         <Image src="/UKnightText.png" alt="uKnight" width={100} height={30} loading="eager" className="-ml-2 object-contain drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] pb-0.5 w-auto h-auto" />
                       </div>
                     </div>

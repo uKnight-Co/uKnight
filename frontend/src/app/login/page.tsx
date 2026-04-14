@@ -98,8 +98,9 @@ export default function LoginPage() {
         try {
             const result = await signInWithEmailAndPassword(auth, email, password)
             await syncUserAndRedirect(result.user)
-        } catch (err: any) {
-            setError(err?.message || "Invalid username/email or password.")
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : "Invalid username/email or password."
+            setError(message)
             console.error(err)
         }
     }

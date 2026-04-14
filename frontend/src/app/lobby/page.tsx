@@ -7,14 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { MediaDeviceSelector } from "@/components/media-device-selector"
 import { useMediaStore } from "@/store/media-store"
 import { useAuth } from "@/context/auth-context"
-import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Client, IMessage, StompSubscription } from "@stomp/stompjs"
 import { Input } from "@/components/ui/input"
 import { GamePickerModal, GAMES } from "@/components/game-pigeon/GamePickerModal"
 import { GameOverlay } from "@/components/game-pigeon/GameOverlay"
 import type { GameResult } from "@/components/game-pigeon/types"
-import { RefreshCw } from "lucide-react"
 import { createPortal } from "react-dom"
 
 const POP_CULTURE = [
