@@ -57,11 +57,16 @@ public class LobbyController {
             if (userId1 != null) userService.incrementPeopleMet(userId1);
             if (userId2 != null) userService.incrementPeopleMet(userId2);
 
-            Object payload1 = Map.of("peerId", partnerSessionId, "initiator", true);
-            messagingTemplate.convertAndSend("/topic/match/" + sessionId, payload1);
+            // Fetch user profiles for enhanced match payload
+            var user1 = userId1 != null ? userService.getUserById(userId1).orElse(null) : null;
+            var user2 = userId2 != null ? userService.getUserById(userId2).orElse(null) : null;
 
-            Object payload2 = Map.of("peerId", sessionId, "initiator", false);
-            messagingTemplate.convertAndSend("/topic/match/" + partnerSessionId, payload2);
+            // Compute shared interests and create enhanced payloads
+            var payload1 = createMatchPayload(partnerSessionId, true, user2, user1);
+            var payload2 = createMatchPayload(sessionId, false, user1, user2);
+
+            messagingTemplate.convertAndSend("/topic/match/" + sessionId, (Object) payload1);
+            messagingTemplate.convertAndSend("/topic/match/" + partnerSessionId, (Object) payload2);
         }
     }
 
@@ -332,5 +337,30 @@ public class LobbyController {
             }
         }
         return result;
+    }
+
+    // Helper method to compute shared interests and create enhanced match payload
+    private Map<String, Object> createMatchPayload(String peerId, boolean initiator, com.uknight.server.model.User partner, com.uknight.server.model.User currentUser) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("peerId", peerId);
+        payload.put("initiator", initiator);
+
+        if (partner != null) {
+            payload.put("partnerName", partner.getDisplayName() != null ? partner.getDisplayName() : "Student");
+            payload.put("partnerSchool", partner.getUniversityName() != null ? partner.getUniversityName() : "Unknown");
+            payload.put("partnerInterests", partner.getInterests() != null ? partner.getInterests() : java.util.List.of());
+
+            // Compute shared interests
+            java.util.List<String> sharedInterests = java.util.List.of();
+            if (currentUser != null && currentUser.getInterests() != null && partner.getInterests() != null) {
+                sharedInterests = currentUser.getInterests().stream()
+                    .filter(interest -> partner.getInterests().contains(interest))
+                    .toList();
+            }
+            payload.put("sharedInterests", sharedInterests);
+            payload.put("matchReason", sharedInterests.isEmpty() ? "Cross-campus connection" : sharedInterests.size() + " shared interest" + (sharedInterests.size() == 1 ? "" : "s"));
+        }
+
+        return payload;
     }
 }

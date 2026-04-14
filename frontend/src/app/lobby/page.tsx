@@ -82,6 +82,11 @@ interface SignalData {
 interface MatchData {
     peerId: string;
     initiator: boolean;
+    partnerName?: string;
+    partnerSchool?: string;
+    sharedInterests?: string[];
+    matchReason?: string;
+    partnerInterests?: string[];
 }
 
 const VIDEO_FILTERS = [
@@ -260,6 +265,12 @@ export default function LobbyPage() {
     const [gamePigeonRole, setGamePigeonRole] = useState<"initiator" | "responder" | null>(null)
     const [gamePigeonLastMove, setGamePigeonLastMove] = useState<Record<string, unknown> | null>(null)
     const [gamePigeonInvite, setGamePigeonInvite] = useState<{ senderId: string; matchId: string; gameType: string } | null>(null)
+
+    // Match info state for showing shared interests
+    const [partnerName, setPartnerName] = useState<string | null>(null)
+    const [partnerSchool, setPartnerSchool] = useState<string | null>(null)
+    const [sharedInterests, setSharedInterests] = useState<string[]>([])
+    const [matchReason, setMatchReason] = useState<string | null>(null)
 
     // Icebreaker
     const [iceType, setIceType] = useState<"pop" | "funny" | "joke">("funny")
@@ -537,6 +548,12 @@ export default function LobbyPage() {
         setRemoteMicOn(true);
         setRemoteVideoOn(true);
         setRemoteVideoFilter("none");
+
+        // Store match info for display
+        setPartnerName(data.partnerName || "Student");
+        setPartnerSchool(data.partnerSchool || "Unknown");
+        setSharedInterests(data.sharedInterests || []);
+        setMatchReason(data.matchReason || "Connected");
 
         if (myVideoFilter !== "none") {
             setTimeout(() => {
@@ -912,6 +929,27 @@ export default function LobbyPage() {
                         <MicOff className="h-5 w-5 text-red-500" />
                         <span>Partner Muted</span>
                     </div>
+                )}
+
+                {/* Shared Interests Banner */}
+                {currentPeerId && sharedInterests && sharedInterests.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-linear-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-md border border-amber-500/40 shadow-lg rounded-full flex flex-row items-center gap-2 px-4 py-2.5 mx-auto"
+                    >
+                        <span className="text-amber-300 font-bold text-sm">✨ Matched on:</span>
+                        <div className="flex flex-row gap-1.5 flex-wrap">
+                            {sharedInterests.slice(0, 3).map((interest, idx) => (
+                                <span key={idx} className="text-xs bg-amber-500/30 px-2 py-1 rounded-full text-amber-100 font-medium">
+                                    {interest}
+                                </span>
+                            ))}
+                            {sharedInterests.length > 3 && (
+                                <span className="text-xs text-amber-100/70 px-2 py-1 font-medium">+{sharedInterests.length - 3} more</span>
+                            )}
+                        </div>
+                    </motion.div>
                 )}
 
                 {/* Icebreaker Banner */}
