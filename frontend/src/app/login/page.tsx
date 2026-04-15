@@ -119,30 +119,24 @@ export default function LoginPage() {
                 className="relative z-10 mx-auto w-full max-w-[420px] px-4"
             >
                 {/* Logo/Header */}
-                <div className="mb-8 text-center space-y-4">
+                <div className="mb-8 text-center">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.2, duration: 0.6 }}
-                        className="flex justify-center"
+                        className="flex justify-center items-center gap-3"
                     >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src="/uKnight_Icon.png"
                             alt="uKnight Logo"
-                            className="h-24 w-24 object-contain drop-shadow-lg drop-shadow-amber-500/50"
+                            className="h-16 w-16 object-contain drop-shadow-lg drop-shadow-amber-500/50 flex-shrink-0"
                         />
-                    </motion.div>
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, duration: 0.6 }}
-                    >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src="/UKnightText.png"
                             alt="uKnight"
-                            className="h-16 mx-auto drop-shadow-lg"
+                            className="h-12 drop-shadow-lg"
                         />
                     </motion.div>
                 </div>

@@ -1160,14 +1160,14 @@ export default function LobbyPage() {
                 {/* Icebreaker Banner - Rendered into Navbar */}
                 {currentPeerId && portalNode
                     ? createPortal(
-                        <div className="max-w-[40vw] sm:max-w-xl w-fit bg-slate-900/90 backdrop-blur-md border border-white/10 shadow-lg rounded-full hidden sm:flex flex-row items-center gap-1 px-1.5 py-1 pointer-events-auto transition-all mr-2">
+                        <div className="flex-1 bg-slate-900/90 backdrop-blur-md border border-white/10 shadow-lg rounded-full hidden sm:flex flex-row items-center gap-1 px-1.5 py-1 pointer-events-auto transition-all mr-2 max-w-full">
                             <div className="flex flex-row items-center gap-1 border-r border-white/10 pr-1.5 flex-none">
                                <button onClick={() => setRandomIcebreaker("pop")} className="text-[10px] sm:text-xs hover:scale-110 active:scale-95 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all bg-white/5" title="Current Events">🔥</button>
                                <button onClick={() => setRandomIcebreaker("funny")} className="text-[10px] sm:text-xs hover:scale-110 active:scale-95 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all bg-white/5" title="Wild Icebreaker">🧊</button>
                                <button onClick={() => setRandomIcebreaker("joke")} className="text-[10px] sm:text-xs hover:scale-110 active:scale-95 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all bg-white/5" title="Joke">😂</button>
                             </div>
-                            <div className="flex-1 flex items-center px-1 min-w-0 overflow-hidden">
-                                <TypewriterText text={iceText} speed={30} className={`text-[10px] sm:text-[11px] md:text-xs lg:text-sm font-bold leading-tight tracking-wide truncate ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
+                            <div className="flex-1 flex items-center px-1 min-w-0">
+                                <TypewriterText text={iceText} speed={30} className={`text-[10px] sm:text-[11px] md:text-xs lg:text-sm font-bold leading-tight tracking-wide ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
                             </div>
                         </div>,
                         portalNode
