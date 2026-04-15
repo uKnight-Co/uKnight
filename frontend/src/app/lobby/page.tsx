@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, SkipForward, Gamepad2, Wand2, Maximize2, AlertTriangle, Expand, Shrink, Zap, Sparkles, Flame, Volume2, VolumeX } from "lucide-react"
+import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, SkipForward, Gamepad2, Wand2, Maximize2, AlertTriangle, Expand, Shrink, Zap, Sparkles, Volume2, VolumeX } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MediaDeviceSelector } from "@/components/media-device-selector"
 import { useMediaStore } from "@/store/media-store"
@@ -302,15 +302,19 @@ const InteractiveBlob = () => {
 const DemoPartnerBackground = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const logoRef = useRef<HTMLImageElement>(null);
-    const stateRef = useRef({ x: Math.random() * 50, y: Math.random() * 50, vx: 2, vy: 2, size: 100 });
+    const stateRef = useRef<{ x: number, y: number, vx: number, vy: number, size: number } | null>(null);
 
     useEffect(() => {
         if (!containerRef.current || !logoRef.current) return;
         
+        if (!stateRef.current) {
+            stateRef.current = { x: Math.random() * 50, y: Math.random() * 50, vx: 2, vy: 2, size: 100 };
+        }
+        
         let animationFrameId: number;
 
         const animate = () => {
-            if (containerRef.current && logoRef.current) {
+            if (containerRef.current && logoRef.current && stateRef.current) {
                 const currentWidth = containerRef.current.clientWidth;
                 const currentHeight = containerRef.current.clientHeight;
 
@@ -334,6 +338,7 @@ const DemoPartnerBackground = () => {
 
     return (
         <div ref={containerRef} className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-gradient-to-br from-slate-900 to-black">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
                 ref={logoRef}
                 src="/uKnight_Icon.png" 
@@ -412,6 +417,7 @@ export default function LobbyPage() {
     const toggleMobileFullscreen = useCallback(() => {
         if (isMobileFullscreen) {
             // Exit fullscreen
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const doc = document as any;
             if (doc.fullscreenElement || doc.webkitFullscreenElement) {
                 if (doc.exitFullscreen) doc.exitFullscreen().catch(() => {});
@@ -421,6 +427,7 @@ export default function LobbyPage() {
             document.documentElement.classList.remove('lobby-fullscreen')
         } else {
             // Try native fullscreen first, fall back to CSS-only mode
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const docEl = document.documentElement as any;
             const requestFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen;
             
@@ -463,8 +470,8 @@ export default function LobbyPage() {
     const [gamePigeonInvite, setGamePigeonInvite] = useState<{ senderId: string; matchId: string; gameType: string } | null>(null)
 
     // Match info state
-    const [partnerName, setPartnerName] = useState<string | null>(null)
-    const [partnerSchool, setPartnerSchool] = useState<string | null>(null)
+    const [, setPartnerName] = useState<string | null>(null)
+    const [, setPartnerSchool] = useState<string | null>(null)
     const [sharedInterests, setSharedInterests] = useState<string[]>([])
     const [hideInterests, setHideInterests] = useState(false)
     const [matchReason, setMatchReason] = useState<string | null>(null)
@@ -1049,7 +1056,6 @@ export default function LobbyPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [localStream])
 
-    const glassButton = "bg-black/60 backdrop-blur-md border border-white/15 hover:bg-white/10 text-white shadow-lg transition-all duration-200 hover:border-white/30"
 
     return (
         <div
@@ -1398,7 +1404,7 @@ export default function LobbyPage() {
                                                 await addDoc(collection(db, "reports"), { reportedUser: currentPeerId || "unknown", reporter: user?.uid || "unknown", timestamp: new Date() });
                                                 toast.success("User reported successfully. Thank you for keeping uKnight safe.");
                                                 document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
-                                            } catch (e) {
+                                            } catch {
                                                 toast.error("Failed to submit report. Please try again later.");
                                             }
                                         }}>Submit Report</Button>
