@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { motion } from "framer-motion"
 
 interface Node {
     id: number
@@ -9,13 +8,6 @@ interface Node {
     y: number
     vx: number
     vy: number
-}
-
-interface Connection {
-    id: number
-    fromId: number
-    toId: number
-    progress: number
 }
 
 export default function AnimatedNetworkBg() {
