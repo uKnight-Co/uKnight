@@ -8,6 +8,7 @@ import { LiveDemo } from "@/components/marketing/live-demo"
 
 import { Manifesto } from "@/components/marketing/manifesto"
 import { FeatureScroll } from "@/components/marketing/feature-scroll"
+import { ParticleNetwork } from "@/components/marketing/particle-network"
 
 export default function Home() {
   return (
@@ -16,7 +17,7 @@ export default function Home() {
         {/* Transformative Hero Section */}
         <section className="relative overflow-hidden border-b bg-background pt-32 pb-16 md:pt-48 md:pb-32">
           {/* Ambient Background */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-background opacity-40" />
+          <ParticleNetwork />
 
           <div className="container mx-auto relative z-10 px-4 md:px-8">
             <div className="grid gap-12 lg:grid-cols-2 lg:gap-8 items-center">
@@ -32,7 +33,7 @@ export default function Home() {
                 </div>
                 <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl lg:text-5xl flex flex-col gap-1 sm:gap-2">
                   <span className="text-white">The Connective Layer for</span>
-                  <span className="bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent font-[family-name:var(--font-bangers)] tracking-wider text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight">
+                  <span className="bg-linear-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent font-(family-name:--font-bangers) tracking-wider text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight">
                     University Students
                   </span>
                 </h1>
@@ -41,7 +42,7 @@ export default function Home() {
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 w-full">
                   <Link href="/lobby" className="w-full sm:w-auto overflow-visible group">
-                    <div className="relative isolate px-6 py-2.5 sm:py-3 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl border-[3px] border-black shadow-[4px_4px_0px_#000000] group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:shadow-[2px_2px_0px_#000000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer overflow-hidden flex items-center justify-center">
+                    <div className="relative isolate px-6 py-2.5 sm:py-3 bg-linear-to-br from-amber-500 to-amber-700 rounded-xl border-[3px] border-black shadow-[4px_4px_0px_#000000] group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:shadow-[2px_2px_0px_#000000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer overflow-hidden flex items-center justify-center">
                       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,black_2px,transparent_2px)] bg-size-[12px_12px] z-[-1] pointer-events-none mix-blend-overlay"></div>
                       <div className="flex items-center gap-0">
                         <Image src="/uKnight_Icon.png" alt="uKnight Logo" width={72} height={72} className="h-[72px] w-[72px] object-contain drop-shadow-[1px_1px_0px_rgba(0,0,0,1)]" />
@@ -65,10 +66,12 @@ export default function Home() {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
-                className="relative hidden lg:block"
+                className="relative hidden lg:block pointer-events-none"
               >
-                <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-600 opacity-20 blur-xl" />
-                <LiveDemo />
+                <div className="absolute -inset-1 rounded-2xl bg-linear-to-r from-amber-400 to-amber-600 opacity-20 blur-xl pointer-events-none" />
+                <div className="pointer-events-auto">
+                    <LiveDemo />
+                </div>
               </motion.div>
             </div>
           </div>

@@ -31,13 +31,14 @@ function formatJoinDate(isoDate: string | null): string {
 
 export default function ProfilePage() {
     const { user } = useAuth()
+    const backendUserId = user?.backendUid || user?.uid
     const [userStats, setUserStats] = useState<UserStats | null>(null)
 
     useEffect(() => {
-        if (!user?.uid) return
+        if (!backendUserId) return
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://uknight-backend-536429702801.us-central1.run.app" : "http://localhost:8080")
-        fetch(`${apiUrl}/api/users/${user.uid}`)
+        fetch(`${apiUrl}/api/users/${backendUserId}`)
             .then(res => res.ok ? res.json() : null)
             .then(data => {
                 if (data) {
@@ -49,7 +50,7 @@ export default function ProfilePage() {
                 }
             })
             .catch(err => console.error("Failed to fetch user stats:", err))
-    }, [user?.uid])
+    }, [backendUserId])
 
     if (!user) return null
 
@@ -60,7 +61,7 @@ export default function ProfilePage() {
     ]
 
     return (
-        <div className="container mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-4xl flex-col items-center px-4 py-10 pt-20">
+        <div className="container mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-4xl flex-col items-center justify-center px-4 py-10 pt-20">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

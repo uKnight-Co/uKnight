@@ -12,6 +12,7 @@ import { collection, addDoc, getDocs, query, where, serverTimestamp, Timestamp, 
 
 export default function VerifyEmailPage() {
     const { user } = useAuth()
+    const backendUserId = user?.backendUid || user?.uid
     const router = useRouter()
 
     const [step, setStep] = useState<"enter-email" | "enter-otp" | "verified">("enter-email")
@@ -25,7 +26,7 @@ export default function VerifyEmailPage() {
 
     // Check if user is already verified on mount
     useEffect(() => {
-        if (!user) {
+        if (!backendUserId) {
             setCheckingVerification(false)
             return
         }
@@ -33,7 +34,7 @@ export default function VerifyEmailPage() {
         const checkVerified = async () => {
             try {
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://uknight-backend-536429702801.us-central1.run.app" : "http://localhost:8080")
-                const res = await fetch(`${apiUrl}/api/users/${user.uid}`)
+                const res = await fetch(`${apiUrl}/api/users/${backendUserId}`)
                 if (res.ok) {
                     const userData = await res.json()
                     if (userData.verified) {
@@ -48,7 +49,7 @@ export default function VerifyEmailPage() {
         }
 
         checkVerified()
-    }, [user, router])
+    }, [backendUserId, router])
 
     // Resend cooldown timer
     useEffect(() => {
@@ -166,7 +167,7 @@ export default function VerifyEmailPage() {
 
             // Mark user as verified in the backend
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://uknight-backend-536429702801.us-central1.run.app" : "http://localhost:8080")
-            const res = await fetch(`${apiUrl}/api/users/${user.uid}/verify`, {
+            const res = await fetch(`${apiUrl}/api/users/${backendUserId}/verify`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

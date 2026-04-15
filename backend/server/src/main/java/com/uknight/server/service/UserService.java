@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -62,8 +63,28 @@ public class UserService {
         return userRepository.findByUsername(username);
     }
 
+    @Transactional
     public User updateUser(User user) {
-        return userRepository.save(user);
+        // Re-fetch from DB so the entity is managed, then merge changes
+        // This ensures @ElementCollection (user_interests) is properly cleared and re-persisted
+        return userRepository.findById(user.getUserId()).map(managed -> {
+            managed.setDisplayName(user.getDisplayName());
+            managed.setProfilePicture(user.getProfilePicture());
+            managed.setUniversityName(user.getUniversityName());
+            managed.setSchoolYear(user.getSchoolYear());
+            managed.setShowUsername(user.getShowUsername());
+            managed.setGender(user.getGender());
+            managed.setUsername(user.getUsername());
+            if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+                managed.setPassword(passwordEncoder.encode(user.getPassword()));
+            }
+            // Clear and replace interests so orphan rows in user_interests are deleted
+            if (user.getInterests() != null) {
+                managed.getInterests().clear();
+                managed.getInterests().addAll(user.getInterests());
+            }
+            return userRepository.saveAndFlush(managed);
+        }).orElse(userRepository.saveAndFlush(user));
     }
 
     public User verifyUser(String userId, Boolean verified, String schoolEmail) {

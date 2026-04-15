@@ -26,6 +26,10 @@ const bangers = Bangers({
 export const metadata: Metadata = {
   title: "uKnight | Connect with Students",
   description: "The exclusive video chat platform for university students.",
+  icons: {
+    icon: "/uKnight_Icon.png",
+    apple: "/uKnight_Icon.png",
+  },
 };
 
 export default function RootLayout({

@@ -408,6 +408,26 @@ export default function LobbyPage() {
         idleTimer.current = setTimeout(() => setControlsVisible(false), 3000)
     }, [])
 
+    const playMusic = (audio: HTMLAudioElement | null) => {
+        if (!audio) return
+        audio.loop = true
+        audio.play().catch((err) => console.log("Music play blocked until user interacts:", err))
+    }
+
+    const unlockMusic = () => {
+        if (!isMusicMuted) {
+            if (!currentPeerId && waitingAudioRef.current) {
+                waitingAudioRef.current.volume = 0.6
+                playMusic(waitingAudioRef.current)
+            }
+            const gameActive = !!(activeGameId || (modularQueue && modularQueue.length > 0))
+            if (gameActive && gameMusicRef.current) {
+                gameMusicRef.current.volume = 0.4
+                playMusic(gameMusicRef.current)
+            }
+        }
+    }
+
     useEffect(() => {
         // Start idle timer on mount
         idleTimer.current = setTimeout(() => setControlsVisible(false), 3000)
@@ -1062,6 +1082,7 @@ export default function LobbyPage() {
             className="relative h-screen w-full bg-black overflow-hidden flex items-center justify-center"
             onMouseMove={showControls}
             onTouchStart={showControls}
+            onClick={unlockMusic}
         >
             {/* Persistent audio elements */}
             <audio ref={gameMusicRef} src="/gamemusic.mp3" loop className="hidden" />
@@ -1363,7 +1384,24 @@ export default function LobbyPage() {
                                     ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
                                     : "bg-white/8 text-white/70 hover:bg-white/15 hover:text-white border border-white/10"
                             }`}
-                            onClick={() => { playSound("click"); setIsMusicMuted(!isMusicMuted); }}
+                            onClick={() => {
+                                playSound("click")
+                                const nextMuted = !isMusicMuted
+                                setIsMusicMuted(nextMuted)
+                                if (!nextMuted) {
+                                    if (!currentPeerId && waitingAudioRef.current) {
+                                        waitingAudioRef.current.volume = 0.6
+                                        waitingAudioRef.current.loop = true
+                                        waitingAudioRef.current.play().catch(() => {})
+                                    }
+                                    const gameActive = !!(activeGameId || (modularQueue && modularQueue.length > 0))
+                                    if (gameActive && gameMusicRef.current) {
+                                        gameMusicRef.current.volume = 0.4
+                                        gameMusicRef.current.loop = true
+                                        gameMusicRef.current.play().catch(() => {})
+                                    }
+                                }
+                            }}
                             title={isMusicMuted ? "Unmute Music" : "Mute Music"}
                         >
                             {isMusicMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}

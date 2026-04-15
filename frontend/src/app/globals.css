@@ -165,3 +165,23 @@
     transform: translateX(-50%);
   }
 }
+
+/* Lobby CSS-only fullscreen mode (iOS fallback) */
+html.lobby-fullscreen header {
+  /* Previously display: none. Now we keep it visible as requested. */
+}
+
+html.lobby-fullscreen body {
+  overflow: hidden;
+}
+
+/* Smooth touch scrolling for mobile chat */
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent text size adjustment on mobile rotation */
+body {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}

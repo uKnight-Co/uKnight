@@ -95,8 +95,13 @@ public class UserController {
                             existing.setGender(updatedFields.getGender());
                         if (updatedFields.getInterests() != null)
                             existing.setInterests(updatedFields.getInterests());
-                        if (updatedFields.getUsername() != null)
-                            existing.setUsername(updatedFields.getUsername());
+                        if (updatedFields.getUsername() != null) {
+                            if (updatedFields.getUsername().trim().isEmpty()) {
+                                existing.setUsername(null);
+                            } else {
+                                existing.setUsername(updatedFields.getUsername());
+                            }
+                        }
                         if (updatedFields.getPassword() != null && !updatedFields.getPassword().isBlank())
                             existing.setPassword(passwordEncoder.encode(updatedFields.getPassword()));
                         return ResponseEntity.ok(userService.updateUser(existing));

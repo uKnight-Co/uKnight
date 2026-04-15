@@ -12,6 +12,7 @@ interface SessionUser {
     email: string | null
     displayName: string | null
     photoURL: string | null
+    backendUid?: string
 }
 
 interface AuthContextType {
@@ -73,6 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     if (res.ok) {
                         const userData = await res.json()
                         setIsVerified(userData.verified || false)
+                        setUser({
+                            uid: firebaseUser.uid,
+                            email: firebaseUser.email,
+                            displayName: firebaseUser.displayName,
+                            photoURL: firebaseUser.photoURL,
+                            backendUid: userData.userId,
+                        })
                     }
                 } catch {
                     // Backend sync is best-effort
