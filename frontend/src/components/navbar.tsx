@@ -33,10 +33,10 @@ export function Navbar() {
                         <Image
                             src="/UKnightText.png"
                             alt="uKnight Text"
-                            width={80}
-                            height={22}
+                            width={130}
+                            height={36}
                             loading="eager"
-                            className="block h-[22px] object-contain pb-0.5 transform transition-transform group-hover:scale-105 group-hover:-rotate-1"
+                            className="block h-[36px] object-contain pb-0.5 transform transition-transform group-hover:scale-105 group-hover:-rotate-1"
                             style={{ width: 'auto' }}
                         />
                     </Link>

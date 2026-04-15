@@ -1269,16 +1269,18 @@ export default function LobbyPage() {
                         </button>
 
                         {/* Chat */}
-                        <button
-                            className="relative h-9 w-9 md:h-11 md:w-11 shrink-0 rounded-xl flex items-center justify-center bg-white/8 text-white/70 hover:bg-white/15 hover:text-white border border-white/10 transition-all duration-200 active:scale-95"
-                            onClick={() => { playSound("chat"); setIsChatOpen(!isChatOpen); }}
-                            title="Chat"
-                        >
-                            <MessageSquare className="h-4 w-4" />
-                            {chatMessages.length > 0 && !isChatOpen && (
-                                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full border border-black/60" />
-                            )}
-                        </button>
+                        {currentPeerId && (
+                            <button
+                                className="relative h-9 w-9 md:h-11 md:w-11 shrink-0 rounded-xl flex items-center justify-center bg-white/8 text-white/70 hover:bg-white/15 hover:text-white border border-white/10 transition-all duration-200 active:scale-95"
+                                onClick={() => { playSound("chat"); setIsChatOpen(!isChatOpen); }}
+                                title="Chat"
+                            >
+                                <MessageSquare className="h-4 w-4" />
+                                {chatMessages.length > 0 && !isChatOpen && (
+                                    <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full border border-black/60" />
+                                )}
+                            </button>
+                        )}
 
                         {/* Divider */}
                         <div className="w-px h-5 bg-white/10 mx-0.5" />
