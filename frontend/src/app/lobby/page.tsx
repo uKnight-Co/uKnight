@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, SkipForward, Gamepad2, Wand2, Maximize2, AlertTriangle, Expand, Shrink } from "lucide-react"
+import { Mic, MicOff, Video, VideoOff, Settings, Users, Send, MessageSquare, X, SkipForward, Gamepad2, Wand2, Maximize2, AlertTriangle, Expand, Shrink, Zap, Sparkles, Flame, Volume2, VolumeX } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MediaDeviceSelector } from "@/components/media-device-selector"
 import { useMediaStore } from "@/store/media-store"
@@ -14,6 +14,9 @@ import { GamePickerModal, GAMES } from "@/components/game-pigeon/GamePickerModal
 import { GameOverlay } from "@/components/game-pigeon/GameOverlay"
 import type { GameResult } from "@/components/game-pigeon/types"
 import { createPortal } from "react-dom"
+import { db } from "@/lib/firebase"
+import { collection, addDoc } from "firebase/firestore"
+import { toast } from "sonner"
 
 const POP_CULTURE = [
     "Are you tapping into the 'analog' living trend or are you still hopelessly addicted to screen time?",
@@ -41,6 +44,76 @@ const JOKES = [
     "What do you call a fish wearing a bowtie? Sofishticated.",
     "I told my Wi-Fi I loved it... it said we had a connection."
 ];
+
+// ─── Sound Effects (Web Audio API, no external files) ──────────────────────
+function useSoundEffect() {
+    const audioCtx = useRef<AudioContext | null>(null)
+
+    const getCtx = useCallback(() => {
+        if (!audioCtx.current) {
+            audioCtx.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+        }
+        return audioCtx.current
+    }, [])
+
+    const play = useCallback((type: "click" | "toggle-on" | "toggle-off" | "next" | "chat") => {
+        try {
+            const ctx = getCtx()
+            const osc = ctx.createOscillator()
+            const gain = ctx.createGain()
+            osc.connect(gain)
+            gain.connect(ctx.destination)
+
+            switch (type) {
+                case "click":
+                    osc.type = "sine"
+                    osc.frequency.setValueAtTime(880, ctx.currentTime)
+                    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.08)
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime)
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
+                    osc.start(); osc.stop(ctx.currentTime + 0.1)
+                    break
+                case "toggle-on":
+                    osc.type = "sine"
+                    osc.frequency.setValueAtTime(440, ctx.currentTime)
+                    osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.1)
+                    gain.gain.setValueAtTime(0.07, ctx.currentTime)
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
+                    osc.start(); osc.stop(ctx.currentTime + 0.12)
+                    break
+                case "toggle-off":
+                    osc.type = "sine"
+                    osc.frequency.setValueAtTime(660, ctx.currentTime)
+                    osc.frequency.exponentialRampToValueAtTime(330, ctx.currentTime + 0.1)
+                    gain.gain.setValueAtTime(0.07, ctx.currentTime)
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
+                    osc.start(); osc.stop(ctx.currentTime + 0.12)
+                    break
+                case "next":
+                    osc.type = "triangle"
+                    osc.frequency.setValueAtTime(600, ctx.currentTime)
+                    osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.05)
+                    osc.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + 0.15)
+                    gain.gain.setValueAtTime(0.09, ctx.currentTime)
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18)
+                    osc.start(); osc.stop(ctx.currentTime + 0.18)
+                    break
+                case "chat":
+                    osc.type = "sine"
+                    osc.frequency.setValueAtTime(523, ctx.currentTime)
+                    osc.frequency.setValueAtTime(659, ctx.currentTime + 0.06)
+                    gain.gain.setValueAtTime(0.06, ctx.currentTime)
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15)
+                    osc.start(); osc.stop(ctx.currentTime + 0.15)
+                    break
+            }
+        } catch {
+            // Audio not available, fail silently
+        }
+    }, [getCtx])
+
+    return { play }
+}
 
 function TypewriterText({ text, speed = 35, className }: { text: string, speed?: number, className?: string }) {
     const [displayedText, setDisplayedText] = useState("");
@@ -119,7 +192,6 @@ const BouncingCircles = () => {
         const width = containerRef.current.clientWidth;
         const height = containerRef.current.clientHeight;
 
-        // Initialize state
         stateRef.current = Array.from({ length: 8 }).map((_, i) => {
             const size = 60 + Math.random() * 120;
             const speed = 1.5 + Math.random() * 2;
@@ -134,7 +206,6 @@ const BouncingCircles = () => {
             };
         });
 
-        // Apply initial static styles
         stateRef.current.forEach((circle, i) => {
             const el = circlesRef.current[i];
             if (el) {
@@ -155,34 +226,19 @@ const BouncingCircles = () => {
                     circle.x += circle.vx;
                     circle.y += circle.vy;
 
-                    // Bounce off edges (DVD style)
-                    if (circle.x <= 0) {
-                        circle.x = 0;
-                        circle.vx *= -1;
-                    } else if (circle.x + circle.size >= currentWidth) {
-                        circle.x = currentWidth - circle.size;
-                        circle.vx *= -1;
-                    }
-
-                    if (circle.y <= 0) {
-                        circle.y = 0;
-                        circle.vy *= -1;
-                    } else if (circle.y + circle.size >= currentHeight) {
-                        circle.y = currentHeight - circle.size;
-                        circle.vy *= -1;
-                    }
+                    if (circle.x <= 0) { circle.x = 0; circle.vx *= -1; }
+                    else if (circle.x + circle.size >= currentWidth) { circle.x = currentWidth - circle.size; circle.vx *= -1; }
+                    if (circle.y <= 0) { circle.y = 0; circle.vy *= -1; }
+                    else if (circle.y + circle.size >= currentHeight) { circle.y = currentHeight - circle.size; circle.vy *= -1; }
 
                     const el = circlesRef.current[i];
-                    if (el) {
-                        el.style.transform = `translate(${circle.x}px, ${circle.y}px)`;
-                    }
+                    if (el) el.style.transform = `translate(${circle.x}px, ${circle.y}px)`;
                 });
             }
             animationFrameId = requestAnimationFrame(animate);
         };
 
         animationFrameId = requestAnimationFrame(animate);
-
         return () => cancelAnimationFrame(animationFrameId);
     }, []);
 
@@ -191,12 +247,100 @@ const BouncingCircles = () => {
             {Array.from({ length: 8 }).map((_, i) => (
                 <div
                     key={i}
-                    ref={(el) => {
-                        circlesRef.current[i] = el;
-                    }}
+                    ref={(el) => { circlesRef.current[i] = el; }}
                     className="absolute rounded-full mix-blend-screen filter blur-xl opacity-40 will-change-transform top-0 left-0"
                 />
             ))}
+        </div>
+    );
+};
+
+const InteractiveBlob = () => {
+    const [transform, setTransform] = useState("translate(-50%, -50%)");
+
+    useEffect(() => {
+        let frame: number;
+        const handleMouseMove = (e: MouseEvent) => {
+            frame = requestAnimationFrame(() => {
+                const x = (e.clientX / window.innerWidth) - 0.5;
+                const y = (e.clientY / window.innerHeight) - 0.5;
+                setTransform(`translate(calc(-50% + ${x * 60}px), calc(-50% + ${y * 60}px))`);
+            });
+        };
+        
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            cancelAnimationFrame(frame);
+        };
+    }, []);
+
+    return (
+        <div 
+            className="absolute top-1/2 left-1/2 pointer-events-none mix-blend-screen transition-transform duration-700 ease-out z-0"
+            style={{ transform }}
+        >
+            <div 
+                className="w-[200px] h-[200px] sm:w-[280px] sm:h-[280px] opacity-80"
+                style={{
+                    background: "radial-gradient(circle at center, rgba(245,158,11,0.25) 0%, rgba(245,158,11,0.1) 60%, transparent 100%)",
+                    boxShadow: "inset 0 0 50px rgba(245,158,11,0.2), 0 0 60px rgba(245,158,11,0.1)",
+                    animation: "blob_wave 8s ease-in-out infinite alternate"
+                }}
+            />
+            <style>{`
+                @keyframes blob_wave {
+                    0% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: scale(1) rotate(0deg); filter: blur(5px); }
+                    50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; transform: scale(1.1) rotate(15deg); filter: blur(8px); }
+                    100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: scale(0.95) rotate(-10deg); filter: blur(6px); }
+                }
+            `}</style>
+        </div>
+    );
+};
+
+const DemoPartnerBackground = () => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const logoRef = useRef<HTMLImageElement>(null);
+    const stateRef = useRef({ x: Math.random() * 50, y: Math.random() * 50, vx: 2, vy: 2, size: 100 });
+
+    useEffect(() => {
+        if (!containerRef.current || !logoRef.current) return;
+        
+        let animationFrameId: number;
+
+        const animate = () => {
+            if (containerRef.current && logoRef.current) {
+                const currentWidth = containerRef.current.clientWidth;
+                const currentHeight = containerRef.current.clientHeight;
+
+                stateRef.current.x += stateRef.current.vx;
+                stateRef.current.y += stateRef.current.vy;
+
+                if (stateRef.current.x <= 0) { stateRef.current.x = 0; stateRef.current.vx *= -1; }
+                else if (stateRef.current.x + stateRef.current.size >= currentWidth) { stateRef.current.x = currentWidth - stateRef.current.size; stateRef.current.vx *= -1; }
+                
+                if (stateRef.current.y <= 0) { stateRef.current.y = 0; stateRef.current.vy *= -1; }
+                else if (stateRef.current.y + stateRef.current.size >= currentHeight) { stateRef.current.y = currentHeight - stateRef.current.size; stateRef.current.vy *= -1; }
+
+                logoRef.current.style.transform = `translate(${stateRef.current.x}px, ${stateRef.current.y}px)`;
+            }
+            animationFrameId = requestAnimationFrame(animate);
+        };
+
+        animationFrameId = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(animationFrameId);
+    }, []);
+
+    return (
+        <div ref={containerRef} className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-gradient-to-br from-slate-900 to-black">
+            <img 
+                ref={logoRef}
+                src="/uKnight_Icon.png" 
+                alt="uKnight Demo"
+                className="absolute top-0 left-0 drop-shadow-2xl opacity-80 will-change-transform"
+                style={{ width: '100px', height: '100px', objectFit: 'contain' }}
+            />
         </div>
     );
 };
@@ -211,6 +355,10 @@ export default function LobbyPage() {
     const myUuid = useRef<string>(crypto.randomUUID())
     const lastNextTime = useRef<number>(0)
     const lastChatTime = useRef<number>(0)
+    const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const waitingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const waitingAudioRef = useRef<HTMLAudioElement | null>(null)
+    const gameMusicRef = useRef<HTMLAudioElement | null>(null)
 
     // Subscriptions
     const subscriptionMatch = useRef<StompSubscription | null>(null)
@@ -237,24 +385,72 @@ export default function LobbyPage() {
     const { user: firebaseUser } = useAuth()
     const [isMobileFullscreen, setIsMobileFullscreen] = useState(false)
 
-    const toggleMobileFullscreen = useCallback(() => {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => {
-                // fallback: just hide browser chrome via state
-            })
-            setIsMobileFullscreen(true)
-        } else {
-            document.exitFullscreen().catch(() => {})
-            setIsMobileFullscreen(false)
-        }
+    // Auto-hide controls
+    const [controlsVisible, setControlsVisible] = useState(true)
+
+    // Demo match
+    const [showDemoButton, setShowDemoButton] = useState(false)
+    const [isDemoMatch, setIsDemoMatch] = useState(false)
+
+    // Music mute
+    const [isMusicMuted, setIsMusicMuted] = useState(false)
+
+    const { play: playSound } = useSoundEffect()
+
+    const showControls = useCallback(() => {
+        setControlsVisible(true)
+        if (idleTimer.current) clearTimeout(idleTimer.current)
+        idleTimer.current = setTimeout(() => setControlsVisible(false), 3000)
     }, [])
 
     useEffect(() => {
+        // Start idle timer on mount
+        idleTimer.current = setTimeout(() => setControlsVisible(false), 3000)
+        return () => { if (idleTimer.current) clearTimeout(idleTimer.current) }
+    }, [])
+
+    const toggleMobileFullscreen = useCallback(() => {
+        if (isMobileFullscreen) {
+            // Exit fullscreen
+            const doc = document as any;
+            if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+                if (doc.exitFullscreen) doc.exitFullscreen().catch(() => {});
+                else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+            }
+            setIsMobileFullscreen(false)
+            document.documentElement.classList.remove('lobby-fullscreen')
+        } else {
+            // Try native fullscreen first, fall back to CSS-only mode
+            const docEl = document.documentElement as any;
+            const requestFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen;
+            
+            if (requestFs) {
+                try {
+                    const fsPromise = requestFs.call(docEl);
+                    if (fsPromise && fsPromise.catch) {
+                        fsPromise.catch(() => {});
+                    }
+                } catch (e) {
+                    console.log("Fullscreen error:", e);
+                }
+            }
+            setIsMobileFullscreen(true)
+            document.documentElement.classList.add('lobby-fullscreen')
+        }
+    }, [isMobileFullscreen])
+
+    useEffect(() => {
         const onFsChange = () => {
-            setIsMobileFullscreen(!!document.fullscreenElement)
+            if (!document.fullscreenElement) {
+                setIsMobileFullscreen(false)
+                document.documentElement.classList.remove('lobby-fullscreen')
+            }
         }
         document.addEventListener('fullscreenchange', onFsChange)
-        return () => document.removeEventListener('fullscreenchange', onFsChange)
+        return () => {
+            document.removeEventListener('fullscreenchange', onFsChange)
+            document.documentElement.classList.remove('lobby-fullscreen')
+        }
     }, [])
 
     // Game Pigeon state
@@ -266,10 +462,11 @@ export default function LobbyPage() {
     const [gamePigeonLastMove, setGamePigeonLastMove] = useState<Record<string, unknown> | null>(null)
     const [gamePigeonInvite, setGamePigeonInvite] = useState<{ senderId: string; matchId: string; gameType: string } | null>(null)
 
-    // Match info state for showing shared interests
+    // Match info state
     const [partnerName, setPartnerName] = useState<string | null>(null)
     const [partnerSchool, setPartnerSchool] = useState<string | null>(null)
     const [sharedInterests, setSharedInterests] = useState<string[]>([])
+    const [hideInterests, setHideInterests] = useState(false)
     const [matchReason, setMatchReason] = useState<string | null>(null)
 
     // Icebreaker
@@ -284,7 +481,7 @@ export default function LobbyPage() {
         if (type === "joke") setIceText(JOKES[Math.floor(Math.random() * JOKES.length)]);
     }
 
-    // --- Mutable refs for latest callbacks and state ---
+    // Mutable refs for latest callbacks
     const localStreamRef = useRef<MediaStream | null>(null)
     const handleMatchFoundRef = useRef<((data: MatchData, stream: MediaStream) => Promise<void>) | null>(null)
     const handleSignalRef = useRef<((data: SignalData) => Promise<void>) | null>(null)
@@ -299,12 +496,113 @@ export default function LobbyPage() {
         setPortalNode(document.getElementById("navbar-center-portal"));
     }, []);
 
-    const log = (msg: string) => {
-        console.log(msg)
-    }
+    // Demo match — show button after 20s of waiting
+    useEffect(() => {
+        if (!currentPeerId) {
+            waitingTimer.current = setTimeout(() => setShowDemoButton(true), 20000)
+        } else {
+            setShowDemoButton(false)
+            if (waitingTimer.current) clearTimeout(waitingTimer.current)
+        }
+        return () => { if (waitingTimer.current) clearTimeout(waitingTimer.current) }
+    }, [currentPeerId])
+
+    // Waiting music loop
+    useEffect(() => {
+        const audio = waitingAudioRef.current;
+        if (!audio) return;
+        if (!currentPeerId && !isMusicMuted) {
+            audio.volume = 0.6;
+            audio.loop = true;
+            audio.play().catch(e => console.log("Waiting music autoplay prevented", e));
+        } else {
+            audio.pause();
+            if (currentPeerId) audio.currentTime = 0;
+        }
+    }, [currentPeerId, isMusicMuted]);
+
+    // Game music: play at 40% when a game is active, duck when partner talks
+    useEffect(() => {
+        const audio = gameMusicRef.current;
+        if (!audio) return;
+        const gameActive = !!(activeGameId || (modularQueue && modularQueue.length > 0));
+        if (gameActive && !isMusicMuted) {
+            audio.volume = 0.4;
+            audio.loop = true;
+            audio.play().catch(() => {});
+        } else {
+            audio.pause();
+            if (!gameActive) audio.currentTime = 0;
+        }
+    }, [activeGameId, modularQueue, isMusicMuted]);
+
+    // Voice-activity ducking: lower game music when partner is talking
+    useEffect(() => {
+        if (!remoteVideoRef.current?.srcObject || isMusicMuted) return;
+        const stream = remoteVideoRef.current.srcObject as MediaStream;
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length === 0) return;
+
+        let ctx: AudioContext | null = null;
+        let analyser: AnalyserNode | null = null;
+        let rafId: number;
+        try {
+            ctx = new AudioContext();
+            const source = ctx.createMediaStreamSource(stream);
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+            const data = new Uint8Array(analyser.frequencyBinCount);
+
+            const check = () => {
+                if (!analyser || !gameMusicRef.current) return;
+                analyser.getByteFrequencyData(data);
+                const avg = data.reduce((a, b) => a + b, 0) / data.length;
+                // If partner is speaking (avg > 15), duck to 15%, otherwise 40%
+                const target = avg > 15 ? 0.15 : 0.4;
+                const cur = gameMusicRef.current.volume;
+                gameMusicRef.current.volume = cur + (target - cur) * 0.15;
+                rafId = requestAnimationFrame(check);
+            };
+            rafId = requestAnimationFrame(check);
+        } catch { /* Audio context not available */ }
+
+        return () => {
+            cancelAnimationFrame(rafId!);
+            ctx?.close().catch(() => {});
+        };
+    }, [currentPeerId, activeGameId, modularQueue, isMusicMuted]);
+
+    const simulateDemoMatch = useCallback(() => {
+        playSound("next")
+        setIsDemoMatch(true)
+        setCurrentPeerId("demo-partner")
+        setPartnerName("Alex (Demo)")
+        setPartnerSchool("University of Central Florida")
+        setSharedInterests(["Gaming", "Music", "Coffee"])
+        setHideInterests(false)
+        setMatchReason("Demo match — no real peer connected")
+        setStatus("Connected (Demo)")
+        setShowDemoButton(false)
+        setIsChatOpen(true)
+        setRandomIcebreaker("funny")
+        // Seed realistic demo chat messages over time
+        const msgs: { text: string; delay: number }[] = [
+            { text: "Hey! 👋 Welcome to uKnight!", delay: 800 },
+            { text: "This is a demo match so you can explore the UI", delay: 2500 },
+            { text: "Try clicking the 🎮 Play button above to start a game!", delay: 5000 },
+            { text: "You can also change your video filter with the ✨ wand button", delay: 8000 },
+        ]
+        msgs.forEach(({ text, delay }) => {
+            setTimeout(() => {
+                setChatMessages(prev => [...prev, { id: crypto.randomUUID(), sender: 'partner', text }])
+            }, delay)
+        })
+    }, [playSound])
+
+    const log = (msg: string) => { console.log(msg) }
 
     // --- Helper Functions ---
-
     const sendSignal = (payload: SignalData) => {
         if (stompClient.current && stompClient.current.connected) {
             stompClient.current.publish({
@@ -318,15 +616,11 @@ export default function LobbyPage() {
     const processIceQueue = async () => {
         const pc = peerConnection.current;
         if (!pc || !pc.remoteDescription) return;
-
         while (iceCandidatesQueue.current.length > 0) {
             const candidate = iceCandidatesQueue.current.shift();
             if (candidate) {
-                try {
-                    await pc.addIceCandidate(candidate);
-                } catch (e) {
-                    console.error("Error adding buffered ICE candidate", e);
-                }
+                try { await pc.addIceCandidate(candidate); }
+                catch (e) { console.error("Error adding buffered ICE candidate", e); }
             }
         }
     }
@@ -346,6 +640,7 @@ export default function LobbyPage() {
         setCurrentPeerId(null);
         setChatMessages([]);
         setIsChatOpen(false);
+        setIsDemoMatch(false);
         if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = null;
             remoteVideoRef.current.load();
@@ -374,74 +669,50 @@ export default function LobbyPage() {
     const handleSignal = async (data: SignalData) => {
         const pc = peerConnection.current;
 
-        // Handle SKIP signal (BYE)
-        if (data.type === 'BYE') {
-            log("Partner skipped.");
-            handlePartnerDisconnect();
-            return;
-        }
-
+        if (data.type === 'BYE') { log("Partner skipped."); handlePartnerDisconnect(); return; }
         if (data.type === 'MEDIA_STATE' && data.mediaState) {
             setRemoteMicOn(data.mediaState.audioEnabled);
             setRemoteVideoOn(data.mediaState.videoEnabled);
             return;
         }
-
-        if (data.type === 'VIDEO_FILTER' && data.filter) {
-            setRemoteVideoFilter(data.filter);
-            return;
-        }
-
+        if (data.type === 'VIDEO_FILTER' && data.filter) { setRemoteVideoFilter(data.filter); return; }
         if (!pc || (pc.signalingState as string) === 'closed') return;
 
         try {
             if (data.type === 'OFFER') {
                 log("Received OFFER")
                 if (!currentPeerId && data.senderId) setCurrentPeerId(data.senderId);
-
                 const offer = JSON.parse(data.sdp!) as RTCSessionDescriptionInit;
                 if ((pc.signalingState as string) === 'closed') return;
                 await pc.setRemoteDescription(offer);
-
                 await processIceQueue();
-
                 if ((pc.signalingState as string) === 'closed') return;
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
                 sendSignal({ type: 'ANSWER', sdp: JSON.stringify(answer), targetPeerId: data.senderId });
-
             } else if (data.type === 'ANSWER') {
                 log("Received ANSWER")
                 const answer = JSON.parse(data.sdp!) as RTCSessionDescriptionInit;
                 if ((pc.signalingState as string) === 'closed') return;
                 await pc.setRemoteDescription(answer);
                 await processIceQueue();
-
             } else if (data.type === 'ICE') {
                 if (data.candidate) {
                     const candidate = JSON.parse(data.candidate) as RTCIceCandidateInit;
                     if (pc.remoteDescription && (pc.signalingState as string) !== 'closed') {
-                        try {
-                            log("Adding ICE candidate immediately");
-                            await pc.addIceCandidate(candidate);
-                        } catch (e) {
-                            console.error("Error adding ICE candidate", e);
-                        }
+                        try { log("Adding ICE candidate"); await pc.addIceCandidate(candidate); }
+                        catch (e) { console.error("Error adding ICE candidate", e); }
                     } else {
-                        log("Buffering ICE candidate (Remote description not set)");
+                        log("Buffering ICE candidate");
                         iceCandidatesQueue.current.push(candidate);
                     }
                 }
             }
-        } catch (error) {
-            console.error("Error handling signal:", error);
-        }
+        } catch (error) { console.error("Error handling signal:", error); }
     }
 
     const createPeerConnection = (targetPeerId: string, stream: MediaStream) => {
-        if (peerConnection.current) {
-            peerConnection.current.close();
-        }
+        if (peerConnection.current) peerConnection.current.close();
 
         const pc = new RTCPeerConnection({
             iceServers: [
@@ -450,21 +721,9 @@ export default function LobbyPage() {
                 { urls: 'stun:stun2.l.google.com:19302' },
                 { urls: 'stun:stun3.l.google.com:19302' },
                 { urls: 'stun:stun4.l.google.com:19302' },
-                {
-                    urls: 'turn:openrelay.metered.ca:80',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turn:openrelay.metered.ca:443',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
+                { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
                 { urls: 'stun:stun.services.mozilla.com' },
                 { urls: 'stun:global.stun.twilio.com:3478' }
             ]
@@ -472,28 +731,14 @@ export default function LobbyPage() {
 
         pc.oniceconnectionstatechange = () => {
             log(`ICE Check: ${pc.iceConnectionState}`);
-            if (pc.iceConnectionState === 'failed') {
-                log("ICE connection failed. Retrying...");
-                pc.restartIce();
-            }
+            if (pc.iceConnectionState === 'failed') { log("ICE failed, retrying"); pc.restartIce(); }
         };
-
-        pc.onsignalingstatechange = () => {
-            log(`Signaling State: ${pc.signalingState}`);
-        };
-
-        stream.getTracks().forEach(track => {
-            pc.addTrack(track, stream);
-        });
+        pc.onsignalingstatechange = () => { log(`Signaling State: ${pc.signalingState}`); };
+        stream.getTracks().forEach(track => { pc.addTrack(track, stream); });
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                log(`Generated Candidate: ${event.candidate.type} (${event.candidate.protocol})`);
-                sendSignal({
-                    type: 'ICE',
-                    candidate: JSON.stringify(event.candidate),
-                    targetPeerId: targetPeerId
-                });
+                sendSignal({ type: 'ICE', candidate: JSON.stringify(event.candidate), targetPeerId });
             }
         };
 
@@ -503,42 +748,27 @@ export default function LobbyPage() {
                 const existingStream = remoteVideoRef.current.srcObject as MediaStream;
                 if (event.streams && event.streams[0]) {
                     if (existingStream !== event.streams[0]) {
-                        log("Assigning new remote stream to video element");
                         remoteVideoRef.current.srcObject = event.streams[0];
                     }
                 } else {
                     if (!existingStream) {
-                        log("Creating fallback stream for track");
-                        const newStream = new MediaStream([event.track]);
-                        remoteVideoRef.current.srcObject = newStream;
-                    } else {
-                        log("Adding track to existing fallback stream");
-                        if (!existingStream.getTracks().some(t => t.id === event.track.id)) {
-                            existingStream.addTrack(event.track);
-                        }
+                        remoteVideoRef.current.srcObject = new MediaStream([event.track]);
+                    } else if (!existingStream.getTracks().some(t => t.id === event.track.id)) {
+                        existingStream.addTrack(event.track);
                     }
                 }
-
                 if (remoteVideoRef.current.paused) {
-                    remoteVideoRef.current.play().catch(e => {
-                        if (e.name !== 'AbortError') console.error("Autoplay error:", e);
-                    });
+                    remoteVideoRef.current.play().catch(e => { if (e.name !== 'AbortError') console.error("Autoplay error:", e); });
                 }
             }
         };
 
-        pc.onconnectionstatechange = () => {
-            log(`Connection State: ${pc.connectionState}`)
-        };
-
+        pc.onconnectionstatechange = () => { log(`Connection State: ${pc.connectionState}`) };
         peerConnection.current = pc;
     }
 
     const handleMatchFound = async (data: MatchData, stream: MediaStream) => {
-        if (currentPeerId === data.peerId) {
-            log("Ignoring duplicate match event for same peer.");
-            return;
-        }
+        if (currentPeerId === data.peerId) { log("Ignoring duplicate match."); return; }
 
         log(`Match found! Partner: ${data.peerId.substring(0, 5)}... Initiator: ${data.initiator}`)
         setStatus("Connected! Negotiating...")
@@ -548,67 +778,49 @@ export default function LobbyPage() {
         setRemoteMicOn(true);
         setRemoteVideoOn(true);
         setRemoteVideoFilter("none");
-
-        // Store match info for display
         setPartnerName(data.partnerName || "Student");
         setPartnerSchool(data.partnerSchool || "Unknown");
         setSharedInterests(data.sharedInterests || []);
+        setHideInterests(false);
         setMatchReason(data.matchReason || "Connected");
 
         if (myVideoFilter !== "none") {
-            setTimeout(() => {
-                sendSignal({ type: 'VIDEO_FILTER', filter: myVideoFilter, targetPeerId: data.peerId });
-            }, 500);
+            setTimeout(() => { sendSignal({ type: 'VIDEO_FILTER', filter: myVideoFilter, targetPeerId: data.peerId }); }, 500);
         }
 
         createPeerConnection(data.peerId, stream);
-
-        // Randomize icebreaker on new match
         setRandomIcebreaker("funny");
 
         if (data.initiator) {
             try {
                 setTimeout(async () => {
                     if (!peerConnection.current) return;
-
                     const hasAudio = stream.getAudioTracks().length > 0;
                     const hasVideo = stream.getVideoTracks().length > 0;
                     if (!hasAudio) peerConnection.current.addTransceiver('audio', { direction: 'recvonly' });
                     if (!hasVideo) peerConnection.current.addTransceiver('video', { direction: 'recvonly' });
-
                     const offer = await peerConnection.current.createOffer();
                     await peerConnection.current.setLocalDescription(offer);
                     sendSignal({ type: 'OFFER', sdp: JSON.stringify(offer), targetPeerId: data.peerId });
                 }, 100);
-            } catch (err) {
-                console.error("Error creating offer:", err);
-            }
+            } catch (err) { console.error("Error creating offer:", err); }
         }
     }
 
     const subscribeToTopics = (client: Client, uuid: string) => {
         subscriptionMatch.current = client.subscribe(`/topic/match/${uuid}`, (message: IMessage) => {
             const data = JSON.parse(message.body) as MatchData
-            if (handleMatchFoundRef.current) {
-                handleMatchFoundRef.current(data, localStreamRef.current!)
-            }
+            if (handleMatchFoundRef.current) handleMatchFoundRef.current(data, localStreamRef.current!)
         })
-
         subscriptionSignal.current = client.subscribe(`/topic/signal/${uuid}`, (message: IMessage) => {
             const data = JSON.parse(message.body) as SignalData
-            if (handleSignalRef.current) {
-                handleSignalRef.current(data)
-            }
+            if (handleSignalRef.current) handleSignalRef.current(data)
         })
-
         subscriptionChat.current = client.subscribe(`/topic/chat/${uuid}`, (message: IMessage) => {
             const data = JSON.parse(message.body) as { message: string };
             setChatMessages(prev => [...prev, { id: crypto.randomUUID(), sender: 'partner', text: data.message }]);
-            if (!isChatOpen) {
-                setIsChatOpen(true);
-            }
+            if (!isChatOpen) setIsChatOpen(true);
         })
-
         subscriptionGame.current = client.subscribe(`/topic/game/${uuid}`, (message: IMessage) => {
             const data = JSON.parse(message.body);
             console.log("GAME TOPIC DATA RECEIVED:", data);
@@ -625,17 +837,10 @@ export default function LobbyPage() {
                 } else {
                     displayName = GAMES.find(g => g.id === gameType)?.name ?? gameType;
                 }
-
-                // Game Pigeon invite
                 setGamePigeonInvite({ senderId: data.senderId, matchId: data.matchId, gameType });
-                setChatMessages(prev => [...prev, {
-                    id: crypto.randomUUID(),
-                    sender: 'partner',
-                    text: `🎮 Partner challenged you to ${displayName}! Check the invite below.`
-                }]);
+                setChatMessages(prev => [...prev, { id: crypto.randomUUID(), sender: 'partner', text: `🎮 Partner challenged you to ${displayName}! Check the invite below.` }]);
                 setIsChatOpen(true);
             } else if (data.type === 'GAME_START') {
-                // Game Pigeon start
                 setGamePigeonMatchId(data.matchId);
                 setGamePigeonRole(data.role || 'responder');
                 const isTournament = data.gameType?.startsWith('tournament:');
@@ -647,7 +852,6 @@ export default function LobbyPage() {
                     setModularQueue(null);
                 }
             } else if (data.type === 'GAME_MOVE') {
-                // Relay opponent move to the active game component
                 setGamePigeonLastMove(data.action || null);
             }
         })
@@ -655,50 +859,46 @@ export default function LobbyPage() {
 
     const sendChat = () => {
         const now = Date.now();
-        if (now - lastChatTime.current < 1000) return; // 1 second cooldown
+        if (now - lastChatTime.current < 1000) return;
         lastChatTime.current = now;
+        if (!chatInput.trim() || !currentPeerId) return;
 
-        if (!chatInput.trim() || !currentPeerId || !stompClient.current?.connected) return;
-
-        // Chat spam protection removed per user request - allow unlimited messaging
-
-        const message = chatInput.trim();
-
-        // Handle slash commands
-        if (message.toLowerCase() === '/knockout') {
-            sendGamePigeonInvite('pigeon_knockout');
+        if (isDemoMatch) {
+            // Demo mode — echo locally only
+            const message = chatInput.trim();
+            setChatMessages(prev => [...prev, { id: crypto.randomUUID(), sender: 'me', text: message }]);
             setChatInput("");
+            // Simulate a reply
+            setTimeout(() => {
+                const replies = ["Haha nice!", "I totally agree 😄", "That's wild!", "No way!", "Tell me more!"]
+                setChatMessages(prev => [...prev, { id: crypto.randomUUID(), sender: 'partner', text: replies[Math.floor(Math.random() * replies.length)] }]);
+            }, 1500)
             return;
         }
 
+        if (!stompClient.current?.connected) return;
+
+        const message = chatInput.trim();
+        if (message.toLowerCase() === '/knockout') { sendGamePigeonInvite('pigeon_knockout'); setChatInput(""); return; }
+
         setChatMessages(prev => [...prev, { id: crypto.randomUUID(), sender: 'me', text: message }]);
         setChatInput("");
-
         stompClient.current.publish({
             destination: '/app/chat',
             headers: { 'uuid': myUuid.current },
-            body: JSON.stringify({ targetPeerId: currentPeerId, message: message })
+            body: JSON.stringify({ targetPeerId: currentPeerId, message })
         });
     }
 
     const sendGamePigeonInvite = (gameData: string | string[]) => {
         if (!currentPeerId || !stompClient.current?.connected) return;
-
         const isTournament = Array.isArray(gameData);
         const gameTypeStr = isTournament ? `tournament:${gameData.join(',')}` : (gameData as string);
-        
         let displayName = gameData as string;
-        if (isTournament) {
-            displayName = `Tournament (${gameData.length} games)`;
-        } else {
-            displayName = GAMES.find(g => g.id === gameData)?.name ?? (gameData as string);
-        }
+        if (isTournament) { displayName = `Tournament (${gameData.length} games)`; }
+        else { displayName = GAMES.find(g => g.id === gameData)?.name ?? (gameData as string); }
 
-        setChatMessages(prev => [...prev, {
-            id: crypto.randomUUID(),
-            sender: 'me',
-            text: `🎮 Game invite sent: ${displayName}. Waiting for partner...`
-        }]);
+        setChatMessages(prev => [...prev, { id: crypto.randomUUID(), sender: 'me', text: `🎮 Game invite sent: ${displayName}. Waiting for partner...` }]);
         setIsChatOpen(true);
 
         stompClient.current.publish({
@@ -707,7 +907,6 @@ export default function LobbyPage() {
             body: JSON.stringify({ targetPeerId: currentPeerId, gameType: gameTypeStr })
         });
 
-        // Optimistically set role as initiator and wait for GAME_START
         setGamePigeonRole('initiator');
     }
 
@@ -722,41 +921,26 @@ export default function LobbyPage() {
 
     const acceptGamePigeonInvite = () => {
         if (!gamePigeonInvite || !stompClient.current?.connected) return;
-
         stompClient.current.publish({
             destination: '/app/game/accept',
             headers: { 'uuid': myUuid.current },
-            body: JSON.stringify({
-                targetPeerId: gamePigeonInvite.senderId,
-                matchId: gamePigeonInvite.matchId,
-                gameType: gamePigeonInvite.gameType,
-                role: 'initiator'  // tell server to notify initiator
-            })
+            body: JSON.stringify({ targetPeerId: gamePigeonInvite.senderId, matchId: gamePigeonInvite.matchId, gameType: gamePigeonInvite.gameType, role: 'initiator' })
         });
-
         setGamePigeonMatchId(gamePigeonInvite.matchId);
         setGamePigeonRole('responder');
-        
         const isTournament = gamePigeonInvite.gameType.startsWith('tournament:');
-        if (isTournament) {
-            setActiveGameId(null);
-            setModularQueue(gamePigeonInvite.gameType.split(':')[1].split(','));
-        } else {
-            setActiveGameId(gamePigeonInvite.gameType);
-            setModularQueue(null);
-        }
+        if (isTournament) { setActiveGameId(null); setModularQueue(gamePigeonInvite.gameType.split(':')[1].split(',')); }
+        else { setActiveGameId(gamePigeonInvite.gameType); setModularQueue(null); }
         setGamePigeonInvite(null);
     }
 
-    const declineGamePigeonInvite = () => {
-        setGamePigeonInvite(null);
-    }
+    const declineGamePigeonInvite = () => { setGamePigeonInvite(null); }
 
     const handleNext = () => {
         const now = Date.now();
         if (now - lastNextTime.current < 2000) return;
         lastNextTime.current = now;
-
+        playSound("next")
         if (currentPeerId) {
             sendEndSession();
             sendSignal({ type: 'BYE', targetPeerId: currentPeerId });
@@ -766,42 +950,32 @@ export default function LobbyPage() {
 
     const toggleMic = () => {
         const nextState = !isMicOn;
+        playSound(nextState ? "toggle-on" : "toggle-off")
         setIsMicOn(nextState)
-        if (localStream) {
-            localStream.getAudioTracks().forEach(t => t.enabled = nextState);
-        }
-        if (currentPeerId) {
-            sendSignal({ type: 'MEDIA_STATE', targetPeerId: currentPeerId, mediaState: { audioEnabled: nextState, videoEnabled: isVideoOn } });
-        }
+        if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = nextState);
+        if (currentPeerId) sendSignal({ type: 'MEDIA_STATE', targetPeerId: currentPeerId, mediaState: { audioEnabled: nextState, videoEnabled: isVideoOn } });
     }
 
     const toggleVideo = () => {
         const nextState = !isVideoOn;
+        playSound(nextState ? "toggle-on" : "toggle-off")
         setIsVideoOn(nextState)
-        if (localStream) {
-            localStream.getVideoTracks().forEach(t => t.enabled = nextState);
-        }
-        if (currentPeerId) {
-            sendSignal({ type: 'MEDIA_STATE', targetPeerId: currentPeerId, mediaState: { audioEnabled: isMicOn, videoEnabled: nextState } });
-        }
+        if (localStream) localStream.getVideoTracks().forEach(t => t.enabled = nextState);
+        if (currentPeerId) sendSignal({ type: 'MEDIA_STATE', targetPeerId: currentPeerId, mediaState: { audioEnabled: isMicOn, videoEnabled: nextState } });
     }
 
     const handleSetVideoFilter = (f: string) => {
+        playSound("click")
         setMyVideoFilter(f);
-        if (currentPeerId) {
-            sendSignal({ type: 'VIDEO_FILTER', filter: f, targetPeerId: currentPeerId });
-        }
+        if (currentPeerId) sendSignal({ type: 'VIDEO_FILTER', filter: f, targetPeerId: currentPeerId });
     }
 
-    // --- Effects ---
-
+    // --- Media & STOMP Effects ---
     useEffect(() => {
         let stream: MediaStream | null = null;
         async function getMedia() {
             try {
-                if (localStreamRef.current) {
-                    localStreamRef.current.getTracks().forEach(track => track.stop());
-                }
+                if (localStreamRef.current) localStreamRef.current.getTracks().forEach(track => track.stop());
 
                 const constraints = {
                     video: videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true,
@@ -812,14 +986,12 @@ export default function LobbyPage() {
                     stream = await navigator.mediaDevices.getUserMedia(constraints)
                     setStatus("Camera Ready. Connecting to server...")
                 } catch (err) {
-                    console.warn("Error accessing video+audio. Trying fallback to audio only.", err)
+                    console.warn("Fallback to audio only.", err)
                     try {
-                        const audioConstraints = { audio: constraints.audio, video: false }
-                        stream = await navigator.mediaDevices.getUserMedia(audioConstraints)
+                        stream = await navigator.mediaDevices.getUserMedia({ audio: constraints.audio, video: false })
                         setStatus("Mic Ready (No Video). Connecting to server...")
-                    } catch (audioErr) {
-                        console.warn("Error accessing audio, proceeding with no media.", audioErr)
-                        stream = new MediaStream() // empty stream
+                    } catch {
+                        stream = new MediaStream()
                         setStatus("Ready (No Media). Connecting to server...")
                     }
                 }
@@ -832,25 +1004,21 @@ export default function LobbyPage() {
                     videoRef.current.srcObject = stream
                 }
             } catch (err) {
-                console.error("Unexpected error in media initialization.", err)
+                console.error("Unexpected error in media init.", err)
                 setStatus("Initialization Error.")
             }
         }
         getMedia()
-
-        return () => {
-            if (stream) stream.getTracks().forEach(track => track.stop());
-        }
+        return () => { if (stream) stream.getTracks().forEach(track => track.stop()); }
     }, [videoDeviceId, audioDeviceId])
 
     useEffect(() => {
         if (!localStream) return;
-
         const uuid = myUuid.current;
 
         const client = new Client({
-            brokerURL: process.env.NODE_ENV === 'production' 
-                ? 'wss://uknight-backend-536429702801.us-central1.run.app/ws' 
+            brokerURL: process.env.NODE_ENV === 'production'
+                ? 'wss://uknight-backend-536429702801.us-central1.run.app/ws'
                 : 'ws://localhost:8080/ws',
             reconnectDelay: 5000,
             debug: (str) => console.log(str),
@@ -861,15 +1029,11 @@ export default function LobbyPage() {
                 client.publish({
                     destination: '/app/join',
                     headers: { 'uuid': uuid },
-                    body: JSON.stringify({ university: "University of Central Florida", userId: firebaseUser?.uid || "" })
+                    body: JSON.stringify({ university: "University of Central Florida", userId: firebaseUser?.uid || "", interests: [] })
                 })
             },
-            onStompError: (frame) => {
-                log('Broker Error: ' + frame.headers['message'])
-            },
-            onDisconnect: () => {
-                setStatus("Disconnected. Retrying...")
-            }
+            onStompError: (frame) => { log('Broker Error: ' + frame.headers['message']) },
+            onDisconnect: () => { setStatus("Disconnected. Retrying...") }
         });
 
         client.activate();
@@ -878,25 +1042,26 @@ export default function LobbyPage() {
         return () => {
             if (peerConnection.current) peerConnection.current.close();
             if (client.connected) {
-                client.publish({
-                    destination: '/app/end-session',
-                    headers: { 'uuid': uuid },
-                    body: ''
-                });
+                client.publish({ destination: '/app/end-session', headers: { 'uuid': uuid }, body: '' });
             }
             client.deactivate();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [localStream])
 
-    // --- UI Variants ---
-    const glassButton = "bg-slate-800/90 backdrop-blur-md border-white/20 hover:bg-slate-700/90 text-white shadow-xl transition-all"
+    const glassButton = "bg-black/60 backdrop-blur-md border border-white/15 hover:bg-white/10 text-white shadow-lg transition-all duration-200 hover:border-white/30"
 
     return (
-        <div className="relative h-screen w-full bg-black overflow-hidden flex items-center justify-center">
+        <div
+            className="relative h-screen w-full bg-black overflow-hidden flex items-center justify-center"
+            onMouseMove={showControls}
+            onTouchStart={showControls}
+        >
+            {/* Persistent audio elements */}
+            <audio ref={gameMusicRef} src="/gamemusic.mp3" loop className="hidden" />
 
             {/* Remote Video Container */}
-            <motion.div 
+            <motion.div
                 className={isLocalMaximized ? "absolute bottom-32 md:bottom-8 lg:bottom-12 left-4 md:left-8 w-40 md:w-56 aspect-video rounded-xl overflow-hidden shadow-2xl border border-white/20 z-20 bg-black/50 backdrop-blur-sm cursor-pointer hover:border-white/40" : "absolute inset-0 z-0"}
                 drag={isLocalMaximized}
                 dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
@@ -915,8 +1080,11 @@ export default function LobbyPage() {
                     style={{ filter: remoteVideoFilter !== "none" ? VIDEO_FILTERS.find(f => f.id === remoteVideoFilter)?.filter : "none" }}
                 />
 
+                {/* Demo match placeholder — bouncing logo */}
+                {isDemoMatch && <DemoPartnerBackground />}
+
                 {/* Remote Media Offline Overlay */}
-                {currentPeerId && !remoteVideoOn && (
+                {currentPeerId && !remoteVideoOn && !isDemoMatch && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-10 transition-opacity">
                         <VideoOff className="h-16 w-16 text-white/50 mb-4 animate-pulse" />
                         <p className="text-white/70 text-lg font-medium">Partner turned off their camera</p>
@@ -931,81 +1099,118 @@ export default function LobbyPage() {
                     </div>
                 )}
 
-                {/* Shared Interests Banner */}
-                {currentPeerId && sharedInterests && sharedInterests.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-linear-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-md border border-amber-500/40 shadow-lg rounded-full flex flex-row items-center gap-2 px-4 py-2.5 mx-auto"
-                    >
-                        <span className="text-amber-300 font-bold text-sm">✨ Matched on:</span>
-                        <div className="flex flex-row gap-1.5 flex-wrap">
-                            {sharedInterests.slice(0, 3).map((interest, idx) => (
-                                <span key={idx} className="text-xs bg-amber-500/30 px-2 py-1 rounded-full text-amber-100 font-medium">
-                                    {interest}
-                                </span>
-                            ))}
-                            {sharedInterests.length > 3 && (
-                                <span className="text-xs text-amber-100/70 px-2 py-1 font-medium">+{sharedInterests.length - 3} more</span>
-                            )}
-                        </div>
-                    </motion.div>
-                )}
+                {/* Lobby Info Stack (Match & Icebreakers) */}
+                <div className="absolute top-[5.25rem] md:top-[4.5rem] mt-2 md:mt-0 left-0 w-full z-40 flex flex-col items-center gap-3 md:gap-2 pointer-events-none px-4">
+                    {/* Shared Interests Banner */}
+                    {currentPeerId && !hideInterests && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-linear-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-md border border-amber-500/40 shadow-lg rounded-full flex flex-row items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 max-w-full pointer-events-auto relative pr-8 md:pr-10"
+                        >
+                            <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-amber-500 flex-none" /><span className="text-amber-300 font-bold text-sm shrink-0">Matched on:</span>
+                            <div className="flex flex-row gap-1.5 flex-wrap overflow-hidden">
+                                {sharedInterests && sharedInterests.length > 0 ? (
+                                    sharedInterests.map((interest, idx) => (
+                                        <span key={idx} className="text-[10px] md:text-xs bg-amber-500/30 px-2 py-1 rounded-full text-amber-100 font-medium whitespace-nowrap">{interest}</span>
+                                    ))
+                                ) : (
+                                    <span className="text-[10px] md:text-xs bg-amber-500/30 px-2 py-1 rounded-full text-amber-100 font-medium whitespace-nowrap">
+                                        {matchReason === "Cross-campus connection" ? "Campus Connection" : (matchReason || "Campus Connection")}
+                                    </span>
+                                )}
+                            </div>
+                            <button 
+                                onClick={() => setHideInterests(true)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-500/70 hover:text-amber-400 bg-black/20 hover:bg-black/40 rounded-full p-0.5 transition-colors"
+                            >
+                                <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                        </motion.div>
+                    )}
+                </div>
 
-                {/* Icebreaker Banner */}
-                {currentPeerId && portalNode && createPortal(
-                    <div className="w-fit min-w-[200px] max-w-[95vw] sm:max-w-2xl lg:max-w-4xl bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-lg rounded-full flex flex-row items-center gap-2 px-2 py-1 animate-in slide-in-from-top-2 mx-auto">
-                        <div className="flex flex-row items-center gap-1.5 border-r border-white/10 pr-2 flex-shrink-0">
-                           <button onClick={() => setRandomIcebreaker("pop")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Current Events">🔥</button>
-                           <button onClick={() => setRandomIcebreaker("funny")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-fuchsia-500/20 hover:bg-fuchsia-500/40 border border-fuchsia-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Wild Icebreaker">🧊</button>
-                           <button onClick={() => setRandomIcebreaker("joke")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Joke">😂</button>
+                {/* Icebreaker Banner - Rendered into Navbar */}
+                {currentPeerId && portalNode
+                    ? createPortal(
+                        <div className="max-w-[40vw] sm:max-w-xl w-fit bg-slate-900/90 backdrop-blur-md border border-white/10 shadow-lg rounded-full hidden sm:flex flex-row items-center gap-1 px-1.5 py-1 pointer-events-auto transition-all mr-2">
+                            <div className="flex flex-row items-center gap-1 border-r border-white/10 pr-1.5 flex-none">
+                               <button onClick={() => setRandomIcebreaker("pop")} className="text-[10px] sm:text-xs hover:scale-110 active:scale-95 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all bg-white/5" title="Current Events">🔥</button>
+                               <button onClick={() => setRandomIcebreaker("funny")} className="text-[10px] sm:text-xs hover:scale-110 active:scale-95 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all bg-white/5" title="Wild Icebreaker">🧊</button>
+                               <button onClick={() => setRandomIcebreaker("joke")} className="text-[10px] sm:text-xs hover:scale-110 active:scale-95 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all bg-white/5" title="Joke">😂</button>
+                            </div>
+                            <div className="flex-1 flex items-center px-1 min-w-0 overflow-hidden">
+                                <TypewriterText text={iceText} speed={30} className={`text-[10px] sm:text-[11px] md:text-xs lg:text-sm font-bold leading-tight tracking-wide truncate ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
+                            </div>
+                        </div>,
+                        portalNode
+                    )
+                    : null
+                }
+                
+                {/* Mobile Fallback Icebreaker Banner */}
+                {currentPeerId && (
+                    <div className="sm:hidden absolute top-[8.5rem] mt-2 left-1/2 -translate-x-1/2 w-[90vw] bg-slate-900/90 backdrop-blur-md border border-white/10 shadow-lg rounded-full flex flex-row items-center gap-1 px-1.5 py-1 pointer-events-auto transition-all z-40">
+                        <div className="flex flex-row items-center gap-1 border-r border-white/10 pr-1.5 flex-none">
+                           <button onClick={() => setRandomIcebreaker("pop")} className="text-[10px] hover:scale-110 active:scale-95 w-6 h-6 rounded-full flex items-center justify-center transition-all bg-white/5" title="Current Events">🔥</button>
+                           <button onClick={() => setRandomIcebreaker("funny")} className="text-[10px] hover:scale-110 active:scale-95 w-6 h-6 rounded-full flex items-center justify-center transition-all bg-white/5" title="Wild Icebreaker">🧊</button>
+                           <button onClick={() => setRandomIcebreaker("joke")} className="text-[10px] hover:scale-110 active:scale-95 w-6 h-6 rounded-full flex items-center justify-center transition-all bg-white/5" title="Joke">😂</button>
                         </div>
-                        <div className="flex-1 flex items-center px-1 overflow-hidden">
-                            <TypewriterText text={iceText} speed={30} className={`text-xs md:text-sm lg:text-[15px] font-bold leading-non tracking-wide truncate sm:whitespace-normal sm:leading-snug ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
-                        </div>
-                    </div>,
-                    portalNode
-                )}
-                {/* Fallback pattern if portal doesn't exist */}
-                {currentPeerId && !portalNode && (
-                    <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 w-fit min-w-[200px] max-w-[95vw] md:max-w-3xl bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-lg rounded-full flex flex-row items-center gap-2 px-2 py-1.5 mx-auto">
-                        <div className="flex flex-row items-center gap-1.5 border-r border-white/10 pr-2 flex-shrink-0">
-                           <button onClick={() => setRandomIcebreaker("pop")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Current Events">🔥</button>
-                           <button onClick={() => setRandomIcebreaker("funny")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-fuchsia-500/20 hover:bg-fuchsia-500/40 border border-fuchsia-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Wild Icebreaker">🧊</button>
-                           <button onClick={() => setRandomIcebreaker("joke")} className="text-sm sm:text-base hover:scale-110 active:scale-95 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/30 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shadow-sm flex-shrink-0" title="Joke">😂</button>
-                        </div>
-                        <div className="flex-1 flex items-center px-1 overflow-hidden">
-                            <TypewriterText text={iceText} speed={30} className={`text-xs md:text-sm font-bold leading-non tracking-wide truncate sm:max-w-2xl sm:whitespace-normal sm:leading-snug ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
+                        <div className="flex-1 flex items-center px-1 min-w-0 overflow-hidden">
+                            <TypewriterText text={iceText} speed={30} className={`text-[10px] font-bold leading-tight tracking-wide truncate ${iceType === "pop" ? "text-cyan-100" : iceType === "funny" ? "text-fuchsia-100" : "text-amber-100"}`} />
                         </div>
                     </div>
                 )}
 
-                {/* Status Overlay */}
+                {/* Status / Waiting Overlay */}
                 {!currentPeerId && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-md z-10 overflow-hidden">
+                        <audio ref={waitingAudioRef} src="/waitingmusic.mp3" loop />
                         <BouncingCircles />
-                        
-                        {/* Waiting Text */}
-                        <div className="text-center relative z-10">
-                            <div className="relative">
+                        <div className="text-center relative z-10 flex flex-col items-center justify-center">
+                            <InteractiveBlob />
+                            <div className="relative mb-4 z-10">
                                 <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse"></div>
-                                <Users className="h-16 w-16 text-primary mx-auto mb-4 relative z-10" />
+                                <Users className="h-16 w-16 text-primary mx-auto relative z-10 drop-shadow-md" />
                             </div>
-                            <p className="text-foreground text-lg font-medium animate-pulse">{status}</p>
+                            <p className="text-foreground text-lg font-medium animate-pulse mb-6 relative z-10 drop-shadow-md">{status}</p>
+
+                            {/* Demo Match Button */}
+                            <AnimatePresence>
+                                {showDemoButton && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                        className="flex flex-col items-center gap-2"
+                                    >
+                                        <p className="text-white/40 text-xs">Taking longer than usual?</p>
+                                        <button
+                                            onClick={simulateDemoMatch}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/40 hover:to-orange-500/40 border border-amber-500/40 hover:border-amber-400/60 rounded-full text-amber-300 font-semibold text-sm transition-all duration-200 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/20 active:scale-95"
+                                        >
+                                            <Zap className="h-4 w-4" />
+                                            Try Demo Match
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
                 )}
             </motion.div>
 
-            {/* Local Video Container */}
+            {/* Local Video Container (PIP) */}
             <motion.div
-                className={!isLocalMaximized ? "absolute bottom-32 md:bottom-8 lg:bottom-12 left-4 md:left-8 w-40 md:w-56 aspect-video rounded-xl overflow-hidden shadow-2xl border border-white/20 z-20 bg-black/50 backdrop-blur-sm group hover:border-white/40" : "absolute inset-0 z-0"}
+                className={!isLocalMaximized
+                    ? "absolute bottom-[4.5rem] md:bottom-24 left-3 md:left-8 w-28 sm:w-36 md:w-52 aspect-video rounded-xl overflow-hidden shadow-2xl border border-white/20 z-20 bg-black/50 backdrop-blur-sm group hover:border-white/40 cursor-grab active:cursor-grabbing"
+                    : "absolute inset-0 z-0"}
                 drag={!isLocalMaximized}
                 dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
             >
                 {!isLocalMaximized && (
-                    <div className="absolute top-2 right-2 bg-black/60 p-1 md:p-1.5 rounded-full text-white backdrop-blur-md z-30 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" onClick={(e) => { e.stopPropagation(); setIsLocalMaximized(true); }}>
-                        <Maximize2 className="h-3 w-3 md:h-4 md:w-4" />
+                    <div className="absolute top-1.5 right-1.5 bg-black/60 p-1 rounded-full text-white backdrop-blur-md z-30 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" onClick={(e) => { e.stopPropagation(); setIsLocalMaximized(true); }}>
+                        <Maximize2 className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
                     </div>
                 )}
                 <video
@@ -1017,147 +1222,192 @@ export default function LobbyPage() {
                     style={{ filter: myVideoFilter !== "none" ? VIDEO_FILTERS.find(f => f.id === myVideoFilter)?.filter : "none" }}
                 />
                 {!isVideoOn && (
-                    <div className="h-full w-full flex items-center justify-center text-white/50 text-xs">
-                        Video Off
-                    </div>
+                    <div className="h-full w-full flex items-center justify-center text-white/50 text-[10px]">Video Off</div>
                 )}
                 {!isMicOn && (
-                    <div className="absolute bottom-2 right-2 bg-black/60 p-1.5 rounded-full backdrop-blur-md z-30">
-                        <MicOff className="h-3 w-3 md:h-4 md:w-4 text-red-500" />
+                    <div className="absolute bottom-1.5 right-1.5 bg-black/60 p-1 rounded-full backdrop-blur-md z-30">
+                        <MicOff className="h-2.5 w-2.5 md:h-3.5 md:w-3.5 text-red-500" />
                     </div>
                 )}
-                <div className="absolute top-2 left-2 bg-black/60 px-2 py-0.5 rounded text-[10px] md:text-xs text-white/90 backdrop-blur-md z-30 font-medium">
-                    You
-                </div>
+                <div className="absolute top-1.5 left-1.5 bg-black/60 px-1.5 py-0.5 rounded text-[9px] md:text-xs text-white/90 backdrop-blur-md z-30 font-medium">You</div>
             </motion.div>
 
-            {/* Controls Bar */}
-            <div className="absolute bottom-4 md:bottom-8 left-0 right-0 flex flex-wrap justify-center items-center gap-2 md:gap-3 px-2 md:px-4 z-30">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`h-12 w-12 md:h-14 md:w-14 shrink-0 rounded-full ${glassButton} ${!isMicOn ? "bg-red-500/20 text-red-500 border-red-500/30 hover:bg-red-500/30" : ""}`}
-                    onClick={toggleMic}
-                >
-                    {isMicOn ? <Mic className="h-5 w-5 md:h-6 md:w-6" /> : <MicOff className="h-5 w-5 md:h-6 md:w-6" />}
-                </Button>
-
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`h-12 w-12 md:h-14 md:w-14 shrink-0 rounded-full ${glassButton} ${!isVideoOn ? "bg-red-500/20 text-red-500 border-red-500/30 hover:bg-red-500/30" : ""}`}
-                    onClick={toggleVideo}
-                >
-                    {isVideoOn ? <Video className="h-5 w-5 md:h-6 md:w-6" /> : <VideoOff className="h-5 w-5 md:h-6 md:w-6" />}
-                </Button>
-
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`h-12 w-12 md:h-14 md:w-14 shrink-0 rounded-full ${glassButton}`}
-                    onClick={() => setIsChatOpen(!isChatOpen)}
-                >
-                    <MessageSquare className="h-5 w-5 md:h-6 md:w-6" />
-                    {chatMessages.length > 0 && !isChatOpen && (
-                        <span className="absolute top-2 right-2 h-2.5 w-2.5 md:h-3 md:w-3 bg-red-500 rounded-full border border-black" />
-                    )}
-                </Button>
-
-                <Button
-                    className="h-12 md:h-14 px-5 md:px-8 shrink-0 rounded-full bg-white text-black hover:bg-white/90 font-medium shadow-xl shadow-white/10 transition-all active:scale-95"
-                    onClick={handleNext}
-                >
-                    <SkipForward className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
-                    Next
-                </Button>
-
-                {/* Mobile-only fullscreen toggle */}
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`h-10 w-10 md:hidden shrink-0 rounded-full ${glassButton}`}
-                    onClick={toggleMobileFullscreen}
-                    title={isMobileFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                >
-                    {isMobileFullscreen ? <Shrink className="h-4 w-4" /> : <Expand className="h-4 w-4" />}
-                </Button>
-
-                <div className="relative">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className={`h-10 w-10 md:h-12 md:w-12 shrink-0 rounded-full ${glassButton} ${myVideoFilter !== "none" ? "ring-2 ring-amber-500" : ""}`}
-                        onClick={() => setShowFilterMenu(!showFilterMenu)}
+            {/* ─── Auto-hide Controls Bar ─────────────────────────────────── */}
+            <AnimatePresence>
+                {controlsVisible && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 px-2 py-1.5 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/10 shadow-2xl max-w-[calc(100vw-1.5rem)] overflow-visible"
                     >
-                        <Wand2 className="h-4 w-4 md:h-5 md:w-5" />
-                    </Button>
-                    <AnimatePresence>
-                        {showFilterMenu && (
-                            <motion.div 
-                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl border border-white/20 p-3 rounded-2xl shadow-2xl grid grid-cols-2 md:grid-cols-3 gap-2 w-[min(420px,90vw)] z-50 max-h-[60vh] overflow-y-auto"
+                        {/* Mic */}
+                        <button
+                            className={`h-9 w-9 md:h-11 md:w-11 flex-none rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 ${
+                                !isMicOn
+                                    ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
+                                    : "bg-white/8 text-white/70 hover:bg-white/15 hover:text-white border border-white/10"
+                            }`}
+                            onClick={toggleMic}
+                            title={isMicOn ? "Mute" : "Unmute"}
+                        >
+                            {isMicOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+                        </button>
+
+                        {/* Camera */}
+                        <button
+                            className={`h-9 w-9 md:h-11 md:w-11 shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 ${
+                                !isVideoOn
+                                    ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
+                                    : "bg-white/8 text-white/70 hover:bg-white/15 hover:text-white border border-white/10"
+                            }`}
+                            onClick={toggleVideo}
+                            title={isVideoOn ? "Turn off camera" : "Turn on camera"}
+                        >
+                            {isVideoOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
+                        </button>
+
+                        {/* Chat */}
+                        <button
+                            className="relative h-9 w-9 md:h-11 md:w-11 shrink-0 rounded-xl flex items-center justify-center bg-white/8 text-white/70 hover:bg-white/15 hover:text-white border border-white/10 transition-all duration-200 active:scale-95"
+                            onClick={() => { playSound("chat"); setIsChatOpen(!isChatOpen); }}
+                            title="Chat"
+                        >
+                            <MessageSquare className="h-4 w-4" />
+                            {chatMessages.length > 0 && !isChatOpen && (
+                                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full border border-black/60" />
+                            )}
+                        </button>
+
+                        {/* Divider */}
+                        <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                        {/* Next */}
+                        <button
+                            className="h-9 md:h-11 px-3 md:px-5 shrink-0 rounded-xl flex items-center gap-1.5 bg-white text-black hover:bg-white/90 font-semibold text-sm transition-all duration-200 active:scale-95 shadow-lg"
+                            onClick={handleNext}
+                            title="Next person"
+                        >
+                            <SkipForward className="h-4 w-4" />
+                            <span className="hidden sm:inline text-xs md:text-sm">Next</span>
+                        </button>
+
+                        {/* Divider */}
+                        <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                        {/* Filters */}
+                        <div className="relative">
+                            <button
+                                className={`h-9 w-9 md:h-11 md:w-11 shrink-0 rounded-xl flex items-center justify-center bg-white/8 text-white/70 hover:bg-white/15 hover:text-white border transition-all duration-200 active:scale-95 ${
+                                    myVideoFilter !== "none" ? "border-amber-500/50 text-amber-400 bg-amber-500/10" : "border-white/10"
+                                }`}
+                                onClick={() => { playSound("click"); setShowFilterMenu(!showFilterMenu); }}
+                                title="Video Filter"
                             >
-                                {VIDEO_FILTERS.map((f) => (
-                                    <button
-                                        key={f.id}
-                                        onClick={(e) => { e.stopPropagation(); handleSetVideoFilter(f.id); setShowFilterMenu(false); }}
-                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all ${
-                                            myVideoFilter === f.id ? "bg-amber-500/20 text-amber-400" : "hover:bg-white/10 text-white"
-                                        }`}
+                                <Wand2 className="h-4 w-4" />
+                            </button>
+                            <AnimatePresence>
+                                {showFilterMenu && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        className="absolute bottom-full mb-3 right-0 sm:left-1/2 sm:-translate-x-1/2 bg-slate-900/98 backdrop-blur-xl border border-white/15 p-2.5 rounded-2xl shadow-2xl grid grid-cols-2 gap-1.5 w-[min(280px,80vw)] z-50 max-h-[50vh] overflow-y-auto"
                                     >
-                                        <span>{f.emoji}</span> {f.name}
-                                    </button>
-                                ))}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className={`h-10 w-10 md:h-12 md:w-12 shrink-0 rounded-full ${glassButton}`}>
-                            <Settings className="h-4 w-4 md:h-5 md:w-5" />
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Media Settings</DialogTitle>
-                        </DialogHeader>
-                        <MediaDeviceSelector />
-                    </DialogContent>
-                </Dialog>
-
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className={`h-10 w-10 md:h-12 md:w-12 shrink-0 rounded-full ${glassButton} bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20`}>
-                            <AlertTriangle className="h-4 w-4 md:h-5 md:w-5" />
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md bg-slate-900 border-red-500/30">
-                        <DialogHeader>
-                            <DialogTitle className="text-red-400 flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5" /> Report User
-                            </DialogTitle>
-                        </DialogHeader>
-                        <div className="py-4 text-white/80">
-                            <p className="mb-4 text-sm">Are you sure you want to report this user? This will flag their account for review by moderators.</p>
-                            <div className="flex justify-end gap-3 mt-6">
-                                <Button variant="ghost" onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}))}>
-                                    Cancel
-                                </Button>
-                                <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={() => {
-                                    alert("User reported successfully. Thank you for keeping uKnight safe.");
-                                    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
-                                }}>
-                                    Submit Report
-                                </Button>
-                            </div>
+                                        {VIDEO_FILTERS.map((f) => (
+                                            <button
+                                                key={f.id}
+                                                onClick={(e) => { e.stopPropagation(); handleSetVideoFilter(f.id); setShowFilterMenu(false); }}
+                                                className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium transition-all ${
+                                                    myVideoFilter === f.id ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "hover:bg-white/8 text-white/80 hover:text-white border border-transparent"
+                                                }`}
+                                            >
+                                                <span>{f.emoji}</span> {f.name}
+                                            </button>
+                                        ))}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
-                    </DialogContent>
-                </Dialog>
-            </div>
+
+                        {/* Media Settings */}
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <button
+                                    className="h-9 w-9 md:h-11 md:w-11 shrink-0 rounded-xl flex items-center justify-center bg-white/8 text-white/70 hover:bg-white/15 hover:text-white border border-white/10 transition-all duration-200 active:scale-95"
+                                    onClick={() => playSound("click")}
+                                    title="Media Settings"
+                                >
+                                    <Settings className="h-4 w-4" />
+                                </button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader><DialogTitle>Media Settings</DialogTitle></DialogHeader>
+                                <MediaDeviceSelector />
+                            </DialogContent>
+                        </Dialog>
+
+                        {/* Music Mute */}
+                        <button
+                            className={`h-9 w-9 md:h-11 md:w-11 shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 ${
+                                isMusicMuted
+                                    ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
+                                    : "bg-white/8 text-white/70 hover:bg-white/15 hover:text-white border border-white/10"
+                            }`}
+                            onClick={() => { playSound("click"); setIsMusicMuted(!isMusicMuted); }}
+                            title={isMusicMuted ? "Unmute Music" : "Mute Music"}
+                        >
+                            {isMusicMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                        </button>
+
+                        {/* Fullscreen (all screen sizes) */}
+                        <button
+                            className="h-9 w-9 md:h-11 md:w-11 shrink-0 rounded-xl flex items-center justify-center bg-white/8 text-white/70 hover:bg-white/15 hover:text-white border border-white/10 transition-all duration-200 active:scale-95"
+                            onClick={() => { playSound("click"); toggleMobileFullscreen(); }}
+                            title={isMobileFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                        >
+                            {isMobileFullscreen ? <Shrink className="h-4 w-4" /> : <Expand className="h-4 w-4" />}
+                        </button>
+
+                        {/* Report */}
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <button
+                                    className="h-9 w-9 md:h-11 md:w-11 shrink-0 rounded-xl flex items-center justify-center bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-all duration-200 active:scale-95"
+                                    onClick={() => playSound("click")}
+                                    title="Report User"
+                                >
+                                    <AlertTriangle className="h-4 w-4" />
+                                </button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md bg-slate-900 border-red-500/30">
+                                <DialogHeader>
+                                    <DialogTitle className="text-red-400 flex items-center gap-2">
+                                        <AlertTriangle className="h-5 w-5" /> Report User
+                                    </DialogTitle>
+                                </DialogHeader>
+                                <div className="py-4 text-white/80">
+                                    <p className="mb-4 text-sm">Are you sure you want to report this user? This will flag their account for review by moderators.</p>
+                                    <div className="flex justify-end gap-3 mt-6">
+                                        <Button variant="ghost" onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}))}>Cancel</Button>
+                                        <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={async () => {
+                                            try {
+                                                await addDoc(collection(db, "reports"), { reportedUser: currentPeerId || "unknown", reporter: user?.uid || "unknown", timestamp: new Date() });
+                                                toast.success("User reported successfully. Thank you for keeping uKnight safe.");
+                                                document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+                                            } catch (e) {
+                                                toast.error("Failed to submit report. Please try again later.");
+                                            }
+                                        }}>Submit Report</Button>
+                                    </div>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
 
             {/* Chat Overlay */}
             <AnimatePresence>
@@ -1222,7 +1472,7 @@ export default function LobbyPage() {
                                             </div>
                                         ) : (
                                             <div className={`max-w-[85%] px-4 py-2.5 text-sm backdrop-blur-md shadow-md ${msg.sender === 'me'
-                                                ? 'bg-gradient-to-tr from-amber-600 to-amber-500 text-white font-medium border border-amber-400/50 rounded-2xl rounded-tr-sm'
+                                                ? 'bg-linear-to-tr from-amber-600 to-amber-500 text-white font-medium border border-amber-400/50 rounded-2xl rounded-tr-sm'
                                                 : 'bg-white/10 text-white border border-white/10 rounded-2xl rounded-tl-sm'
                                                 }`}>
                                                 {msg.text}
@@ -1234,10 +1484,7 @@ export default function LobbyPage() {
                         </div>
 
                         <div className="p-4 border-t border-white/10 bg-black/20">
-                            <form
-                                onSubmit={(e) => { e.preventDefault(); sendChat(); }}
-                                className="flex gap-2"
-                            >
+                            <form onSubmit={(e) => { e.preventDefault(); sendChat(); }} className="flex gap-2">
                                 <Input
                                     placeholder="Type a message..."
                                     value={chatInput}
@@ -1258,14 +1505,14 @@ export default function LobbyPage() {
             {gamePigeonInvite && (
                 <div className="absolute bottom-[88px] md:bottom-32 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 border border-amber-500/40 rounded-2xl px-4 md:px-5 py-3 md:py-4 shadow-2xl shadow-amber-500/20 flex items-center gap-3 md:gap-4 backdrop-blur-xl w-[min(340px,calc(100vw-1.5rem))]">
                     <span className="text-2xl">{
-                        gamePigeonInvite.gameType.startsWith('tournament:') 
-                            ? '🏆' 
+                        gamePigeonInvite.gameType.startsWith('tournament:')
+                            ? '🏆'
                             : GAMES.find(g => g.id === gamePigeonInvite.gameType)?.emoji ?? '🎮'
                     }</span>
                     <div className="flex-1">
                         <p className="text-sm font-bold text-white">Game Challenge!</p>
                         <p className="text-[11px] text-white/50">{
-                            gamePigeonInvite.gameType.startsWith('tournament:') 
+                            gamePigeonInvite.gameType.startsWith('tournament:')
                                 ? `Tournament (${gamePigeonInvite.gameType.split(':')[1].split(',').length} games)`
                                 : GAMES.find(g => g.id === gamePigeonInvite.gameType)?.name ?? gamePigeonInvite.gameType
                         }</p>
@@ -1282,8 +1529,7 @@ export default function LobbyPage() {
                 isOpen={isGamePickerOpen}
                 onClose={() => setIsGamePickerOpen(false)}
                 onStartGame={(gameId) => {
-                    // If connected to a peer, send a real invite; otherwise local demo
-                    if (currentPeerId && stompClient.current?.connected) {
+                    if (currentPeerId && stompClient.current?.connected && !isDemoMatch) {
                         sendGamePigeonInvite(gameId)
                     } else {
                         setModularQueue(null)
@@ -1291,8 +1537,7 @@ export default function LobbyPage() {
                     }
                 }}
                 onStartModular={(gameIds) => {
-                    // If connected to a peer, send a real invite; otherwise local demo
-                    if (currentPeerId && stompClient.current?.connected) {
+                    if (currentPeerId && stompClient.current?.connected && !isDemoMatch) {
                         sendGamePigeonInvite(gameIds)
                     } else {
                         setActiveGameId(null)

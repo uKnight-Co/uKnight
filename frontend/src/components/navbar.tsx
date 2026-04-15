@@ -25,22 +25,23 @@ export function Navbar() {
                         <Image
                             src="/uKnight_Icon.png"
                             alt="uKnight Logo"
-                            width={50}
-                            height={50}
+                            width={36}
+                            height={36}
                             priority
-                            className="h-[50px] w-[50px] object-contain transform transition-transform group-hover:scale-105"
+                            className="h-[36px] w-[36px] object-contain transform transition-transform group-hover:scale-105"
                         />
                         <Image
                             src="/UKnightText.png"
                             alt="uKnight Text"
-                            width={110}
-                            height={32}
+                            width={80}
+                            height={22}
                             loading="eager"
-                            className="block object-contain pb-0.5 transform transition-transform group-hover:scale-105 group-hover:-rotate-1 w-auto h-auto"
+                            className="block h-[22px] object-contain pb-0.5 transform transition-transform group-hover:scale-105 group-hover:-rotate-1"
+                            style={{ width: 'auto' }}
                         />
                     </Link>
                 </div>
-                <div id="navbar-center-portal" className="hidden md:flex flex-1 justify-center px-4" />
+                <div id="navbar-center-portal" className="flex flex-1 justify-center px-2 min-w-0 overflow-hidden" />
                 <nav className="ml-auto flex items-center space-x-4">
                     <Link href="https://forms.gle/frnfixAqKsSA8T6fA" target="_blank" rel="noopener noreferrer">
                         <Button variant="outline" size="sm" className="hidden sm:flex border-amber-500/30 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400">
