@@ -1,7 +1,6 @@
 # uKnight
 
 **Mission:** To create a high-fidelity, university-exclusive distinct connection platform.
-**Aesthetic:** "Vercel-Minimalism" — Dark mode default, sans-serif typography (Inter/Geist), high contrast, zero clutter.
 
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2-green?logo=springboot)](https://spring.io/projects/spring-boot)
