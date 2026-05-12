@@ -77,7 +77,7 @@ graph TD
 
 ## 📊 Benchmarks & Performance Metrics
 
-> **Methodology transparency:** All numbers below are **real measurements** captured from a live client machine located in **Pembroke Pines, FL (Comcast residential network)** against the production deployments of `uknight.net` (Vercel Edge) and the GCP Cloud Run backend. No numbers are estimated or synthetic. Every test was run using native OS tools (`ping`, `tracert`) and a custom Python 3 script using only the standard library (`socket`, `ssl`, `urllib`). Tests were conducted on **2026-05-12** after pulling the latest commit (`471cb7d`).
+> **Methodology transparency:** All numbers below are **real measurements** captured from a live client machine located in the **US East Coast (Residential ISP)** against the production deployments of `uknight.net` (Vercel Edge) and the GCP Cloud Run backend. No numbers are estimated or synthetic. Every test was run using native OS tools (`ping`, `tracert`) and a custom Python 3 script using only the standard library (`socket`, `ssl`, `urllib`). Tests were conducted on **2026-05-12** after pulling the latest commit (`471cb7d`).
 
 ---
 
@@ -116,7 +116,7 @@ Packets: Sent = 15, Received = 15, Lost = 0 (0% loss)
 Minimum = 12ms,  Maximum = 27ms,  Average = 14ms
 ```
 
-**Key finding:** Both the Vercel Edge layer and GCP Cloud Run respond within **11–30ms RTT** from Florida, confirming the infrastructure sits in geographically close PoPs (Vercel Miami Edge, GCP `us-central1` Iowa). **0% packet loss** across all hosts.
+**Key finding:** Both the Vercel Edge layer and GCP Cloud Run respond within **11–30ms RTT** from the US East Coast, confirming the infrastructure sits in geographically close PoPs. **0% packet loss** across all hosts.
 
 ---
 
@@ -126,18 +126,18 @@ Minimum = 12ms,  Maximum = 27ms,  Average = 14ms
 
 ```
 Hop  Latency         Host
- 1   1–2 ms          10.0.0.1              (Local router / home gateway)
- 2   11–16 ms        96.120.37.193         (Comcast first-mile aggregation)
- 3   10–14 ms        po-301-1210-rur02.pembroke.fl.pompano.comcast.net [162.151.128.129]
- 4   12–18 ms        po-2-rur01.pembroke.fl.pompano.comcast.net [162.151.122.113]
- 5   11–18 ms        be-333-arsc1.northdade.fl.pompano.comcast.net [162.151.164.209]
- 6   16–20 ms        be-33811-cs21.nota.fl.ibone.comcast.net [96.110.45.65]   (Comcast backbone)
- 7   12–13 ms        be-2112-pe12.nota.fl.ibone.comcast.net [68.86.92.242]    (Comcast peering edge)
+ 1   1–2 ms          [Redacted]            (Local router / home gateway)
+ 2   11–16 ms        [Redacted]            (ISP first-mile aggregation)
+ 3   10–14 ms        [Redacted]            (ISP regional router)
+ 4   12–18 ms        [Redacted]            (ISP regional router)
+ 5   11–18 ms        [Redacted]            (ISP regional router)
+ 6   16–20 ms        [Redacted]            (ISP backbone)
+ 7   12–13 ms        [Redacted]            (ISP peering edge)
  8–14  * * *         (Vercel/CDN internal backbone — ICMP intentionally blocked)
 15   12–17 ms        216.198.79.1          (Vercel Edge PoP — destination)
 ```
 
-**Analysis:** The route from Pembroke Pines to the Vercel Edge completes in **7 visible hops** through the Comcast backbone. Hops 8–14 time out because Vercel's internal CDN infrastructure blocks ICMP for security — this is normal and expected for production CDN deployments. The final hop (destination) comes back at **12–17ms**, proving the traffic lands at a nearby PoP.
+**Analysis:** The route from the client to the Vercel Edge completes in **7 visible hops** through the ISP backbone. Hops 8–14 time out because Vercel's internal CDN infrastructure blocks ICMP for security — this is normal and expected for production CDN deployments. The final hop (destination) comes back at **12–17ms**, proving the traffic lands at a nearby PoP.
 
 ---
 
@@ -232,8 +232,8 @@ Once two students are matched via the Spring Boot matchmaking queue:
 ```
 Test Date     : 2026-05-12
 Client OS     : Windows (PowerShell + Python 3.12)
-Client ISP    : Comcast (Pembroke Pines, FL)
-Client IP     : Residential (10.0.0.1 LAN gateway)
+Client ISP    : Residential ISP (US East Coast)
+Client IP     : [Redacted]
 Frontend Host : uknight.net → Vercel Edge (Anycast, IP 216.198.79.1)
 Backend Host  : GCP Cloud Run us-central1 (IPv6 2600:1901:81d4:200::)
 Git commit    : 471cb7d (pulled from origin/main before tests)
