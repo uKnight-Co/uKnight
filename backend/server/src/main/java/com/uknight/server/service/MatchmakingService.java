@@ -1,13 +1,34 @@
 package com.uknight.server.service;
 
-import org.springframework.stereotype.Service;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
+/**
+ * Redis-backed matchmaking queue using a Sorted Set (ZSET).
+ *
+ * Key design decisions:
+ *
+ * 1. ZSET instead of SET: The score is the join-timestamp (epoch millis).
+ *    This gives FIFO ordering for free — the user who has waited the longest
+ *    is always at the lowest score and gets matched first.
+ *
+ * 2. Lua script for atomic pop-and-match: The two-step "fetch then remove"
+ *    pattern has a race condition — two concurrent threads can both see the
+ *    same waiter and try to match with them, causing a broken one-sided match.
+ *    A Lua script executes atomically on the Redis server, so only one thread
+ *    ever wins the "pop" for a given waiter.
+ *
+ * 3. No separate session tracking key: The timestamp score IS the join time.
+ *    We use ZREMRANGEBYSCORE to prune stale entries (zombie users whose
+ *    connection dropped before the WebSocketEventListener fired).
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -16,131 +37,97 @@ public class MatchmakingService {
     private final SessionTrackingService sessionTrackingService;
     private final UserService userService;
     private final RedisTemplate<String, Object> redisTemplate;
-    
-    private static final String MATCHMAKING_QUEUE_KEY = "matchmaking:queue";
+
+    static final String QUEUE_KEY = "matchmaking:queue";
     private static final long SESSION_TIMEOUT_SECONDS = 300; // 5 minutes
 
-    public void addUser(String sessionId) {
-        // Check if already in queue
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(MATCHMAKING_QUEUE_KEY))) {
-            Set<Object> members = redisTemplate.opsForSet().members(MATCHMAKING_QUEUE_KEY);
-            if (members != null && members.contains(sessionId)) {
-                return;
-            }
-        }
-        
-        // Add to Redis set with expiration
-        redisTemplate.opsForSet().add(MATCHMAKING_QUEUE_KEY, sessionId);
-        // Set individual expiration key for tracking
-        redisTemplate.opsForValue().set(
-            "matchmaking:session:" + sessionId, 
-            System.currentTimeMillis(), 
-            SESSION_TIMEOUT_SECONDS, 
-            TimeUnit.SECONDS
-        );
-        log.info("User added to matchmaking queue: {}", sessionId);
-    }
+    /**
+     * Lua script that atomically:
+     * 1. Finds the oldest member of the queue (lowest score) that is NOT the current session.
+     * 2. Removes both the found waiter AND the current session from the queue.
+     * 3. Returns the waiter's session ID, or nil if no match was found.
+     *
+     * KEYS[1] = queue key (e.g. "matchmaking:queue")
+     * ARGV[1] = the calling session's ID (excluded from match candidates)
+     */
+    private static final DefaultRedisScript<String> ATOMIC_MATCH_SCRIPT = new DefaultRedisScript<>(
+        """
+        local members = redis.call('ZRANGE', KEYS[1], 0, -1)
+        for _, member in ipairs(members) do
+            if member ~= ARGV[1] then
+                redis.call('ZREM', KEYS[1], member)
+                redis.call('ZREM', KEYS[1], ARGV[1])
+                return member
+            end
+        end
+        return nil
+        """,
+        String.class
+    );
 
-    public void removeUser(String sessionId) {
-        redisTemplate.opsForSet().remove(MATCHMAKING_QUEUE_KEY, sessionId);
-        redisTemplate.delete("matchmaking:session:" + sessionId);
-        log.info("User removed from matchmaking queue: {}", sessionId);
-    }
-
-    public String findMatch(String sessionId) {
-        Set<Object> waitingUsers = redisTemplate.opsForSet().members(MATCHMAKING_QUEUE_KEY);
-        
-        if (waitingUsers == null || waitingUsers.size() < 2) {
-            return null;
-        }
-        
-        String myUserId = sessionTrackingService.getUserId(sessionId);
-        List<String> myInterests = List.of();
-        if (myUserId != null) {
-            myInterests = userService.getUserById(myUserId)
-                .map(u -> u.getInterests() != null ? u.getInterests() : List.<String>of())
-                .orElse(List.of());
-        }
-
-        String bestMatch = null;
-        int maxShared = -1;
-
-        // Try to find someone with shared interests
-        for (Object waiter : waitingUsers) {
-            String waiterSessionId = (String) waiter;
-            if (waiterSessionId.equals(sessionId)) continue;
-
-            String theirUserId = sessionTrackingService.getUserId(waiterSessionId);
-            List<String> theirInterests = List.of();
-            if (theirUserId != null) {
-                theirInterests = userService.getUserById(theirUserId)
-                    .map(u -> u.getInterests() != null ? u.getInterests() : List.<String>of())
-                    .orElse(List.of());
-            }
-
-            int shared = 0;
-            for (String interest : myInterests) {
-                if (theirInterests.contains(interest)) shared++;
-            }
-
-            if (shared > maxShared) {
-                maxShared = shared;
-                bestMatch = waiterSessionId;
-            }
-        }
-
-        if (bestMatch != null) {
-            redisTemplate.opsForSet().remove(MATCHMAKING_QUEUE_KEY, bestMatch);
-            redisTemplate.opsForSet().remove(MATCHMAKING_QUEUE_KEY, sessionId);
-            redisTemplate.delete("matchmaking:session:" + bestMatch);
-            redisTemplate.delete("matchmaking:session:" + sessionId);
-            return bestMatch;
-        }
-
-        // Fallback to first person if no shared interests found
-        for (Object waiter : waitingUsers) {
-            String waiterSessionId = (String) waiter;
-            if (!waiterSessionId.equals(sessionId)) {
-                redisTemplate.opsForSet().remove(MATCHMAKING_QUEUE_KEY, waiterSessionId);
-                redisTemplate.opsForSet().remove(MATCHMAKING_QUEUE_KEY, sessionId);
-                redisTemplate.delete("matchmaking:session:" + waiterSessionId);
-                redisTemplate.delete("matchmaking:session:" + sessionId);
-                return waiterSessionId;
-            }
-        }
-        return null;
-    }
-    
+    /**
+     * Main entry point called by LobbyController on /join.
+     *
+     * First prunes zombie users, then attempts an atomic match.
+     * If no partner is found, adds this user to the queue and returns null.
+     */
     public String attemptMatch(String sessionId) {
-        Set<Object> waitingUsers = redisTemplate.opsForSet().members(MATCHMAKING_QUEUE_KEY);
-        
-        if (waitingUsers == null || waitingUsers.isEmpty()) {
-            // No one waiting, add this user
-            addUser(sessionId);
-            log.info("No match found, added {} to queue", sessionId);
-            return null;
+        pruneStaleEntries();
+
+        // Try to atomically claim a waiting partner
+        String partner = redisTemplate.execute(
+            ATOMIC_MATCH_SCRIPT,
+            List.of(QUEUE_KEY),
+            sessionId
+        );
+
+        if (partner != null) {
+            log.info("Match found via atomic script: {} <-> {}", sessionId, partner);
+            return partner;
         }
 
-        // Try to match with first available user
-        for (Object waiter : waitingUsers) {
-            String waiterSessionId = (String) waiter;
-            if (!waiterSessionId.equals(sessionId)) {
-                // Found a match
-                redisTemplate.opsForSet().remove(MATCHMAKING_QUEUE_KEY, waiterSessionId);
-                redisTemplate.opsForSet().remove(MATCHMAKING_QUEUE_KEY, sessionId);
-                redisTemplate.delete("matchmaking:session:" + waiterSessionId);
-                redisTemplate.delete("matchmaking:session:" + sessionId);
-                log.info("Match found: {} <-> {}", sessionId, waiterSessionId);
-                return waiterSessionId;
-            }
-        }
-        
-        // If only this user exists, add them
-        addUser(sessionId);
+        // No partner available — add self to queue with current timestamp as score
+        double score = System.currentTimeMillis();
+        redisTemplate.opsForZSet().add(QUEUE_KEY, sessionId, score);
+        log.info("No match found, added {} to queue (score={})", sessionId, (long) score);
         return null;
     }
-    
+
+    /**
+     * Explicitly remove a user from the queue (called on disconnect or session end).
+     */
+    public void removeUser(String sessionId) {
+        Long removed = redisTemplate.opsForZSet().remove(QUEUE_KEY, sessionId);
+        if (removed != null && removed > 0) {
+            log.info("Removed {} from matchmaking queue on disconnect", sessionId);
+        }
+    }
+
+    /**
+     * Returns the current number of users waiting in the matchmaking queue.
+     * Used by StatsController.
+     */
     public Long getQueueSize() {
-        return redisTemplate.opsForSet().size(MATCHMAKING_QUEUE_KEY);
+        return redisTemplate.opsForZSet().size(QUEUE_KEY);
+    }
+
+    /**
+     * Removes users from the queue whose join-timestamp score is older than
+     * SESSION_TIMEOUT_SECONDS. This is the safety net for zombie entries
+     * that slip past the WebSocketEventListener (e.g. network-level drops).
+     *
+     * ZREMRANGEBYSCORE is an O(log N + M) server-side operation — no data
+     * is transferred to the application, making it very efficient.
+     */
+    private void pruneStaleEntries() {
+        long cutoff = System.currentTimeMillis() - (SESSION_TIMEOUT_SECONDS * 1000);
+        Long pruned = redisTemplate.opsForZSet().removeRangeByScore(
+            QUEUE_KEY,
+            Double.NEGATIVE_INFINITY,
+            cutoff
+        );
+        if (pruned != null && pruned > 0) {
+            log.warn("Pruned {} stale/zombie entries from matchmaking queue", pruned);
+        }
     }
 }

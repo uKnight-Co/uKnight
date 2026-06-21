@@ -3,7 +3,7 @@
 **Mission:** To create a high-fidelity, university-exclusive distinct connection platform.
 
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2-green?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.0-green?logo=springboot)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7-red?logo=redis)](https://redis.io/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
@@ -47,13 +47,65 @@ graph TD
     LB --> Spring[Spring Boot Cluster]
     
     Spring -->|Read/Write| Postgres[(PostgreSQL)]
-    Spring -->|Queue/Match| Redis[(Redis)]
+    Spring -->|Queue/Match/Stats| Redis[(Redis)]
     
     subgraph "The Magic"
         Redis --> Matchmaker[Matchmaking Service]
+        Redis --> Sessions[Session Tracking]
+        Redis --> Stats[Live Stats Counter]
         Matchmaker --> Spring
     end
 ```
+
+---
+
+## ⚡ Redis Architecture
+
+uKnight uses Redis for three specific, high-value responsibilities — not as a general-purpose cache for everything.
+
+### 1. Atomic Matchmaking Queue (Sorted Set + Lua Script)
+
+The matchmaking queue is a **Redis Sorted Set (ZSET)** where the score is the user's join timestamp. This gives FIFO ordering for free — the longest-waiting user is always first.
+
+Matching is performed by a **Lua script that executes atomically on the Redis server**. This eliminates the race condition that exists in naive "fetch-all → pick one → remove" implementations, where two concurrent threads could both claim the same waiting user.
+
+```
+# What the Lua script does in one atomic server-side operation:
+1. ZRANGE matchmaking:queue 0 -1   → get all waiting sessions (oldest first)
+2. Find the first session that isn't the caller
+3. ZREM both the partner AND the caller from the queue
+4. Return the partner's session ID (or nil if no one is waiting)
+```
+
+A `ZREMRANGEBYSCORE` prune runs on each attempt to evict stale entries older than 5 minutes — a safety net for connections that dropped without sending a clean disconnect.
+
+### 2. Session Tracking (Redis Hashes)
+
+Session state is stored in Redis instead of in-memory `ConcurrentHashMap`s:
+
+| Data | Redis Key | Structure |
+|------|-----------|-----------|
+| WebSocket UUID → Firebase UID | `session:users` | Hash |
+| UUID ↔ Partner UUID | `session:matches` | Hash |
+| Match start time | `session:start:{uuid}` | String (epoch ms) |
+
+All keys carry a **2-hour TTL**. Benefits: state survives server restarts and is shared across multiple server instances (horizontal scaling).
+
+### 3. Live Online User Counter (Redis Atomic Counter)
+
+A single `stats:online_users` key is incremented on WebSocket join and decremented on disconnect (both clean and abnormal via `SessionDisconnectEvent`). The `GET /api/stats/online` endpoint reads this key directly — **O(1), zero database queries**.
+
+```json
+GET /api/stats/online
+{
+  "onlineUsers": 42,
+  "waitingToMatch": 3
+}
+```
+
+### 4. User Profile Cache (@Cacheable)
+
+User profile lookups are cached in Redis via Spring's `@Cacheable` annotation. Each cache (`users`, `users_email`, `users_username`) has a 5-minute TTL configured explicitly in `RedisConfig`. This reduces PostgreSQL load during the matchmaking interest-comparison phase, where each user's profile may be fetched multiple times in quick succession.
 
 ---
 
@@ -61,16 +113,16 @@ graph TD
 
 ### Phase 1: The Skeleton
 - [x] **Auth System:** Secure login restricted to `.edu` domains.
-- [x] **Lobby UI:** Real-time "Online Knights" counter.
-- [/] **Matchmaking:** WebSocket-driven pairing queue.
+- [x] **Lobby UI:** Real-time "Online Knights" counter (`GET /api/stats/online` via Redis).
+- [x] **Matchmaking:** Atomic Redis ZSET queue with Lua script — race-condition-free FIFO pairing.
 
 ### Phase 2: The Connection (In Progress)
 - [ ] **WebRTC Video:** Ultra-low latency P2P video/audio streams.
 - [ ] **Instant Skip:** One-click disconnect and re-queue.
-- [ ] **Text Fallback:** Persistent chat during video sessions.
+- [x] **Text Fallback:** Persistent chat during video sessions.
 
 ### Phase 3: The Polish
-- [ ] **Interest Matching:** Tag-based filtering (e.g., Major, Hobbies).
+- [x] **Interest Matching:** Tag-based filtering matched during pairing (shared interests ranked first).
 - [ ] **AI Guard:** Real-time moderation layer for safety.
 
 ---
@@ -247,6 +299,7 @@ Git commit    : 471cb7d (pulled from origin/main before tests)
 - Docker & Docker Compose
 - Node.js 18+
 - Java 21 & Maven
+- Redis 7+ (or run via Docker Compose — included in `docker-compose.yml`)
 
 ### Quick Start (Docker)
 The easiest way to get uKnight running locally is via Docker Compose:

@@ -6,6 +6,7 @@ import com.uknight.server.service.SessionTrackingService;
 import com.uknight.server.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -26,6 +27,7 @@ public class LobbyController {
     private final SimpMessagingTemplate messagingTemplate;
     private final SessionTrackingService sessionTrackingService;
     private final UserService userService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @MessageMapping("/join")
     public void joinLobby(@Payload Map<String, String> payload, SimpMessageHeaderAccessor headerAccessor) {
@@ -43,9 +45,11 @@ public class LobbyController {
             sessionTrackingService.registerSession(sessionId, firebaseUid);
         }
 
-        matchmakingService.addUser(sessionId);
+        // Increment the global online user counter (decremented on disconnect/endSession)
+        redisTemplate.opsForValue().increment("stats:online_users");
 
-        String partnerSessionId = matchmakingService.findMatch(sessionId);
+        // Single atomic call: either returns a matched partner or adds self to queue
+        String partnerSessionId = matchmakingService.attemptMatch(sessionId);
 
         if (partnerSessionId != null) {
             log.info("Match created: {} and {}", sessionId, partnerSessionId);
@@ -78,6 +82,13 @@ public class LobbyController {
         }
 
         log.info("Session ended for UUID: {}", sessionId);
+
+        // Decrement online counter (clean disconnect path; abnormal disconnects are
+        // handled by WebSocketEventListener)
+        Long onlineCount = redisTemplate.opsForValue().decrement("stats:online_users");
+        if (onlineCount != null && onlineCount < 0) {
+            redisTemplate.opsForValue().set("stats:online_users", 0L);
+        }
 
         String partnerUuid = sessionTrackingService.getPartnerUuid(sessionId);
         long minutes = sessionTrackingService.endSession(sessionId);
