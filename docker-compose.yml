@@ -1,4 +1,17 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - uknight-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   backend:
     build: ./backend/server
     env_file:
@@ -7,6 +20,9 @@ services:
       - "8080:8080"
     networks:
       - uknight-network
+    depends_on:
+      redis:
+        condition: service_healthy
 
   frontend:
     build: ./frontend

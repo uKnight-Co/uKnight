@@ -7,6 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 
 import java.util.Optional;
 
@@ -51,19 +54,23 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    @Cacheable(value = "users", key = "#id", unless = "#result == null")
     public Optional<User> getUserById(String id) {
         return userRepository.findById(id);
     }
 
+    @Cacheable(value = "users_email", key = "#email", unless = "#result == null")
     public Optional<User> getUserByEmail(String email) {
         return userRepository.findByEmail(email);
     }
 
+    @Cacheable(value = "users_username", key = "#username", unless = "#result == null")
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
     @Transactional
+    @CacheEvict(value = {"users", "users_email", "users_username"}, allEntries = true)
     public User updateUser(User user) {
         // Re-fetch from DB so the entity is managed, then merge changes
         // This ensures @ElementCollection (user_interests) is properly cleared and re-persisted
@@ -87,6 +94,8 @@ public class UserService {
         }).orElse(userRepository.saveAndFlush(user));
     }
 
+    @Transactional
+    @CacheEvict(value = {"users", "users_email", "users_username"}, allEntries = true)
     public User verifyUser(String userId, Boolean verified, String schoolEmail) {
         return userRepository.findById(userId).map(user -> {
             if (verified != null) user.setVerified(verified);
@@ -96,6 +105,8 @@ public class UserService {
         }).orElse(null);
     }
 
+    @Transactional
+    @CacheEvict(value = {"users", "users_email", "users_username"}, allEntries = true)
     public void incrementPeopleMet(String userId) {
         userRepository.findById(userId).ifPresent(user -> {
             user.setNumPeopleMet((user.getNumPeopleMet() == null ? 0 : user.getNumPeopleMet()) + 1);
@@ -104,6 +115,8 @@ public class UserService {
         });
     }
 
+    @Transactional
+    @CacheEvict(value = {"users", "users_email", "users_username"}, allEntries = true)
     public void addTimeSpent(String userId, long minutes) {
         if (minutes <= 0) return;
         userRepository.findById(userId).ifPresent(user -> {
